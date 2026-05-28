@@ -1,0 +1,31 @@
+[0m23:05:07.157430 [debug] [MainThread]: Sending event: {'category': 'dbt', 'action': 'invocation', 'label': 'start', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x10a9bc1d0>, <snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x10d937fd0>, <snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x10d937f90>]}
+
+
+============================== 23:05:07.159769 | 1aa4e520-6d91-4c3e-9ca3-30e60a8b8c03 ==============================
+[0m23:05:07.159769 [info ] [MainThread]: Running with dbt=1.11.11
+[0m23:05:07.160010 [debug] [MainThread]: running dbt with arguments {'partial_parse': 'True', 'profiles_dir': '/Users/ahmedbinnayeem/.dbt', 'invocation_command': 'dbt init loanlens', 'send_anonymous_usage_stats': 'True', 'empty': 'None', 'write_json': 'True', 'debug': 'False', 'cache_selected_only': 'False', 'static_parser': 'True', 'use_colors': 'True', 'log_path': 'logs', 'indirect_selection': 'eager', 'no_print': 'None', 'log_cache_events': 'False', 'warn_error_options': 'WarnErrorOptionsV2(error=[], warn=[], silence=[])', 'target_path': 'None', 'quiet': 'False', 'introspect': 'True', 'version_check': 'True', 'printer_width': '80', 'warn_error': 'None', 'use_experimental_parser': 'False', 'log_format': 'default', 'fail_fast': 'False'}
+[0m23:05:07.167907 [info ] [MainThread]: Creating dbt configuration folder at /Users/ahmedbinnayeem/.dbt
+[0m23:05:07.168756 [debug] [MainThread]: Starter project path: /Users/ahmedbinnayeem/Projects/loanlens/.venv/lib/python3.11/site-packages/dbt/include/starter_project
+[0m23:05:07.171678 [info ] [MainThread]: 
+Your new dbt project "loanlens" was created!
+
+For more information on how to configure the profiles.yml file,
+please consult the dbt documentation here:
+
+  https://docs.getdbt.com/docs/configure-your-profile
+
+One more thing:
+
+Need help? Don't hesitate to reach out to us via GitHub issues or on Slack:
+
+  https://community.getdbt.com/
+
+Happy modeling!
+
+[0m23:05:07.171873 [info ] [MainThread]: Setting up your profile.
+[0m23:07:27.632614 [info ] [MainThread]: Profile loanlens written to /Users/ahmedbinnayeem/.dbt/profiles.yml using target's profile_template.yml and your supplied values. Run 'dbt debug' to validate the connection.
+[0m23:07:27.800673 [debug] [MainThread]: Resource report: {"command_name": "init", "command_success": true, "command_wall_clock_time": 140.67952, "process_in_blocks": "0", "process_kernel_time": 0.188539, "process_mem_max_rss": "115900416", "process_out_blocks": "0", "process_user_time": 0.645175}
+[0m23:07:27.801915 [debug] [MainThread]: Command `dbt init` succeeded at 23:07:27.801712 after 140.68 seconds
+[0m23:07:27.802806 [debug] [MainThread]: Sending event: {'category': 'dbt', 'action': 'invocation', 'label': 'end', 'context': [<snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x10a9be650>, <snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x1093a3010>, <snowplow_tracker.self_describing_json.SelfDescribingJson object at 0x10d610f90>]}
+[0m23:07:27.803522 [debug] [MainThread]: Flushing usage events
+[0m23:07:28.007731 [debug] [MainThread]: An error was encountered while trying to flush usage events

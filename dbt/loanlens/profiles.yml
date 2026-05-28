@@ -1,0 +1,12 @@
+loanlens:
+  target: dev
+  outputs:
+    dev:
+      type: postgres
+      host: localhost
+      port: 5432
+      user: loanlens
+      password: loanlens_dev_password
+      dbname: loanlens
+      schema: staging
+      threads: 4
