@@ -25,7 +25,7 @@ class Settings(BaseSettings):
     postgres_port: int = 5432
     postgres_db: str = "loanlens"
     postgres_user: str = "loanlens"
-    postgres_password: str = Field(..., env="POSTGRES_PASSWORD")
+    postgres_password: str = Field(...)
 
     @property
     def database_url(self) -> str:
@@ -44,7 +44,7 @@ class Settings(BaseSettings):
         )
 
     # OpenAI
-    openai_api_key: str = Field(..., env="OPENAI_API_KEY")
+    openai_api_key: str = Field(...)
     openai_model: str = "gpt-4o-mini"
     openai_max_tokens: int = 1000
     openai_temperature: float = 0.1  # Low temp for consistent compliance text
@@ -80,10 +80,7 @@ class Settings(BaseSettings):
     demo_data_dir: str = "./data/demo"
     pdf_dir: str = "./data/regulations"
 
-    class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
-        case_sensitive = False
+    model_config = {"env_file": ".env", "env_file_encoding": "utf-8", "case_sensitive": False}
 
 
 @lru_cache()

@@ -79,5 +79,3 @@ select = ["E", "F", "I"]
 python_version = "3.11"
 ignore_missing_imports = true
 
-[tool.setuptools.packages.find]
-where = ["src"]
