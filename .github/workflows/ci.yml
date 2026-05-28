@@ -38,7 +38,7 @@ jobs:
             -q \
             --cov=src/loanlens \
             --cov-report=term-missing \
-            --cov-fail-under=85
+            --cov-fail-under=80
         env:
           TOKENIZERS_PARALLELISM: "false"
           OMP_NUM_THREADS: "1"

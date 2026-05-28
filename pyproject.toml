@@ -69,7 +69,7 @@ where = ["src"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 asyncio_mode = "auto"
-addopts = "--cov=src/loanlens --cov-report=term-missing"
+addopts = "--cov=src/loanlens --cov-report=term-missing --cov-config=.coveragerc"
 
 [tool.ruff]
 line-length = 88
