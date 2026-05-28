@@ -1,3 +1,14 @@
+---
+title: LoanLens
+emoji: 🔍
+colorFrom: blue
+colorTo: green
+sdk: gradio
+sdk_version: "4.0"
+app_file: app.py
+pinned: false
+---
+
 # LoanLens
 
 ### AI-Powered Credit Risk Explainer Using RAG over CFPB Regulations
