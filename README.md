@@ -266,7 +266,7 @@ prohibited basis under ECOA and cannot be cited as an adverse action reason.
 
 ## Project Structure
 
-## ![alt text](image.png)
+![alt text](image.png)
 
 ## Resume Bullets
 
