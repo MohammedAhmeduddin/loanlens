@@ -35,3 +35,6 @@ models/
 *.egg-info/
 dbt/loanlens/logs/
 data/regulations/
+dbt/logs/
+dbt/loanlens/logs/
+image.png

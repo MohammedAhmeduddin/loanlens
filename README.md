@@ -11,6 +11,7 @@ pinned: false
 ---
 
 # LoanLens 🔍
+
 ### AI-Powered Credit Risk Explainer Using RAG over CFPB Regulations
 
 [![LoanLens CI](https://github.com/MohammedAhmeduddin/loanlens/actions/workflows/ci.yml/badge.svg)](https://github.com/MohammedAhmeduddin/loanlens/actions/workflows/ci.yml)
@@ -56,9 +57,11 @@ cosine similarity retrieval
 v
 GPT-4o-mini --> ECOA-compliant adverse action notice
 grounding score: 1.0
+
 ---
 
 ## System Architecture
+
 Home Credit CSVs (307K rows, 6 tables)
 |
 v dbt SQL transformations
@@ -72,15 +75,16 @@ v SHAP TreeExplainer (top-5 risk factors per borrower)
 v Feature Translator (internal names -> CFPB regulatory language)
 |
 v ChromaDB Vector Store (9,977 CFPB regulation chunks)
-|  sentence-transformers/all-MiniLM-L6-v2 embeddings
-|  cosine similarity search
+| sentence-transformers/all-MiniLM-L6-v2 embeddings
+| cosine similarity search
 |
 v GPT-4o-mini (structured JSON output, function calling)
-|  grounding score verification
+| grounding score verification
 |
 v FastAPI REST endpoints (/score, /explain, /health, /model/info)
 |
 v Gradio analyst dashboard (HuggingFace Spaces)
+
 ---
 
 ## Quickstart
@@ -118,32 +122,33 @@ python src/loanlens/dashboard/app.py
 
 ## Tech Stack
 
-| Layer | Technology | Purpose |
-|---|---|---|
-| Credit Model | XGBoost, SHAP, scikit-learn | Default prediction + explainability |
-| RAG Pipeline | LangChain, ChromaDB, sentence-transformers | Regulatory text retrieval |
-| LLM | GPT-4o-mini (OpenAI) | Adverse action notice generation |
-| MLOps | MLflow, PSI drift detection | Model versioning + monitoring |
-| Data | dbt, PostgreSQL, pandas | Feature engineering pipeline |
-| API | FastAPI, Pydantic, uvicorn | Production REST endpoints |
-| Testing | pytest, 96 tests, 89% coverage | Quality assurance |
-| Deploy | Docker, GitHub Actions, HuggingFace Spaces | CI/CD + demo |
+| Layer        | Technology                                 | Purpose                             |
+| ------------ | ------------------------------------------ | ----------------------------------- |
+| Credit Model | XGBoost, SHAP, scikit-learn                | Default prediction + explainability |
+| RAG Pipeline | LangChain, ChromaDB, sentence-transformers | Regulatory text retrieval           |
+| LLM          | GPT-4o-mini (OpenAI)                       | Adverse action notice generation    |
+| MLOps        | MLflow, PSI drift detection                | Model versioning + monitoring       |
+| Data         | dbt, PostgreSQL, pandas                    | Feature engineering pipeline        |
+| API          | FastAPI, Pydantic, uvicorn                 | Production REST endpoints           |
+| Testing      | pytest, 96 tests, 89% coverage             | Quality assurance                   |
+| Deploy       | Docker, GitHub Actions, HuggingFace Spaces | CI/CD + demo                        |
 
 ---
 
 ## Model Performance
 
-| Metric | Value | Industry Benchmark |
-|---|---|---|
-| Validation AUC | 0.7700 | > 0.75 acceptable |
-| Test AUC | 0.7672 | Consistent with val |
-| KS Statistic | 0.4110 | > 0.30 good |
-| Gini Coefficient | 0.5400 | > 0.50 good |
-| Training samples | 215,257 | |
-| Features | 75 | |
-| Best iteration | 432 | Early stopping applied |
+| Metric           | Value   | Industry Benchmark     |
+| ---------------- | ------- | ---------------------- |
+| Validation AUC   | 0.7700  | > 0.75 acceptable      |
+| Test AUC         | 0.7672  | Consistent with val    |
+| KS Statistic     | 0.4110  | > 0.30 good            |
+| Gini Coefficient | 0.5400  | > 0.50 good            |
+| Training samples | 215,257 |                        |
+| Features         | 75      |                        |
+| Best iteration   | 432     | Early stopping applied |
 
 Baseline progression tracked in MLflow:
+
 - Logistic Regression baseline: AUC 0.70
 - XGBoost no feature engineering: AUC 0.74
 - XGBoost + application features: AUC 0.77
@@ -153,15 +158,15 @@ Baseline progression tracked in MLflow:
 
 ## RAG Pipeline Quality
 
-| Metric | Value |
-|---|---|
-| Knowledge base | 9,977 CFPB regulatory chunks |
-| Embedding model | sentence-transformers/all-MiniLM-L6-v2 (free, CPU) |
-| Retrieval | Cosine similarity, top-3 passages |
-| Top retrieval score | 0.75 (supervision_manual.pdf) |
-| Grounding score | 1.0 (phrase-level verification) |
-| Generation time | ~3.5 seconds |
-| Regulatory source | CFPB Supervision and Examination Manual |
+| Metric              | Value                                              |
+| ------------------- | -------------------------------------------------- |
+| Knowledge base      | 9,977 CFPB regulatory chunks                       |
+| Embedding model     | sentence-transformers/all-MiniLM-L6-v2 (free, CPU) |
+| Retrieval           | Cosine similarity, top-3 passages                  |
+| Top retrieval score | 0.75 (supervision_manual.pdf)                      |
+| Grounding score     | 1.0 (phrase-level verification)                    |
+| Generation time     | ~3.5 seconds                                       |
+| Regulatory source   | CFPB Supervision and Examination Manual            |
 
 ---
 
@@ -170,31 +175,37 @@ Baseline progression tracked in MLflow:
 90+ features engineered across 6 joined tables using dbt SQL:
 
 **From application_train.csv:**
+
 - debt_to_income, credit_to_annuity, income_per_person
 - age_years, employment_years, employed_to_age_ratio
 - ext_source_mean (average of 3 external credit scores)
 
 **From bureau.csv (aggregated per customer):**
+
 - bureau_overdue_count, bureau_max_overdue_days
 - bureau_debt_to_credit, bureau_active_loans
 - bureau_total_debt, bureau_credit_type_count
 
 **From previous_application.csv:**
+
 - prev_refused_count, prev_approval_rate
 - prev_max_credit, prev_avg_credit
 
 **From installments_payments.csv:**
+
 - late_payment_rate, avg_payment_ratio
 - late_payment_count, avg_days_late
 
 ---
 
 ## API Endpoints
-GET  /health          — Service status + model loaded + ChromaDB chunks
-POST /score           — Credit score only (fast, no LLM)
-POST /explain         — Full RAG explanation (score + SHAP + notice)
-GET  /model/info      — Production model metadata from MLflow
+
+GET /health — Service status + model loaded + ChromaDB chunks
+POST /score — Credit score only (fast, no LLM)
+POST /explain — Full RAG explanation (score + SHAP + notice)
+GET /model/info — Production model metadata from MLflow
 Example /explain response:
+
 ```json
 {
   "risk_score": 89.5,
@@ -223,13 +234,13 @@ Example /explain response:
 
 LoanLens maps model features to official CFPB Regulation B adverse action codes:
 
-| Feature | CFPB Code | Regulation |
-|---|---|---|
-| ext_source_mean | A9 - Credit score | FCRA |
-| debt_to_income | A6 - Debt-to-income ratio | ECOA |
-| bureau_overdue_count | A1 - Delinquent obligations | FCRA |
-| employment_years | A13 - Length of employment | ECOA |
-| late_payment_rate | A1 - Delinquent obligations | FCRA |
+| Feature              | CFPB Code                   | Regulation |
+| -------------------- | --------------------------- | ---------- |
+| ext_source_mean      | A9 - Credit score           | FCRA       |
+| debt_to_income       | A6 - Debt-to-income ratio   | ECOA       |
+| bureau_overdue_count | A1 - Delinquent obligations | FCRA       |
+| employment_years     | A13 - Length of employment  | ECOA       |
+| late_payment_rate    | A1 - Delinquent obligations | FCRA       |
 
 Note: age_years maps to A8 (length of credit history), NOT age — age is a
 prohibited basis under ECOA and cannot be cited as an adverse action reason.
@@ -239,12 +250,14 @@ prohibited basis under ECOA and cannot be cited as an adverse action reason.
 ## Dataset
 
 **Home Credit Default Risk** (Kaggle)
+
 - 307,511 loan applications
 - 6 related tables (bureau, installments, previous applications, credit card)
 - 8% default rate (class imbalance handled with scale_pos_weight)
 - Real production-like data with missing values and mixed types
 
 **CFPB Knowledge Base**
+
 - CFPB Supervision and Examination Manual (1,814 pages)
 - 9,977 chunks after RecursiveCharacterTextSplitter (512 tokens, 50 overlap)
 - Free public government document — no licensing issues
@@ -252,23 +265,8 @@ prohibited basis under ECOA and cannot be cited as an adverse action reason.
 ---
 
 ## Project Structure
-loanlens/
-├── src/loanlens/
-│   ├── api/            # FastAPI app + Pydantic schemas
-│   ├── dashboard/      # Gradio UI
-│   ├── model/          # XGBoost training, SHAP, MLflow registry
-│   ├── monitoring/     # PSI drift detection + Slack alerts
-│   ├── rag/            # ChromaDB ingest, retrieval, GPT generation
-│   └── utils/          # Logging
-├── dbt/loanlens/
-│   └── models/
-│       ├── staging/    # 4 staging views (307K -> clean)
-│       └── features/   # feat_master (90+ features)
-├── tests/              # 96 tests, 89% coverage
-├── scripts/            # Data loading, drift check, pipeline test
-├── .github/workflows/  # CI + weekly drift check
-└── docker-compose.yml  # PostgreSQL + MLflow
----
+
+## ![alt text](image.png)
 
 ## Resume Bullets
 
