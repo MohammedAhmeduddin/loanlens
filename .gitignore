@@ -34,3 +34,4 @@ models/
 .DS_Store
 *.egg-info/
 dbt/loanlens/logs/
+data/regulations/
