@@ -32,3 +32,5 @@ models/
 
 # OS
 .DS_Store
+*.egg-info/
+dbt/loanlens/logs/
