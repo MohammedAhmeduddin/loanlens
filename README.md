@@ -483,11 +483,10 @@ every model version with automated drift alerts triggered when PSI exceeds 0.20.
 
 ## Author
 
-**Ahmeduddin Mohammed** | Newark, NJ | MS Computer Science, NJIT
+**Ahmeduddin Mohammed** 
 
 - GitHub: [@MohammedAhmeduddin](https://github.com/MohammedAhmeduddin)
 - LinkedIn: [linkedin.com/in/ahmeduddinmohammed](https://linkedin.com/in/ahmeduddinmohammed)
-- Portfolio: [SessionScout](https://huggingface.co/spaces/AhmeduddinMohammed/sessionscout) · [LoanLens](https://huggingface.co/spaces/AhmeduddinMohammed/loanlens)
 
 ---
 
