@@ -16,7 +16,9 @@ class TestLoanLensPipeline:
     def mock_pipeline(self):
         with patch("loanlens.rag.pipeline.load_production_model") as mock_model, \
              patch("loanlens.rag.pipeline.CreditExplainer") as mock_explainer, \
-             patch("loanlens.rag.pipeline.RegulatoryRetriever") as mock_retriever:
+             patch("loanlens.rag.pipeline.RegulatoryRetriever") as mock_retriever, \
+             patch("loanlens.rag.pipeline.load_preprocessing_artifacts",
+                   return_value=(["ext_source_mean"], {})):
 
             mock_model.return_value = MagicMock()
             mock_explainer.return_value = MagicMock()
@@ -66,7 +68,7 @@ class TestLoanLensPipeline:
         mock_pipeline.model.predict_proba.return_value = np.array([[0.2, 0.8]])
         mock_pipeline.explainer.get_shap_factors.return_value = [
             {"rank": 1, "feature": "ext_source_mean", "feature_value": 0.2,
-             "shap_value": -0.5, "direction": "increases_risk",
+             "shap_value": 0.5, "direction": "increases_risk",
              "label": "Credit score", "cfpb_code": "A9", "regulation": "FCRA"}
         ]
         mock_pipeline.explainer.build_rag_query.return_value = "query"
@@ -94,7 +96,7 @@ class TestLoanLensPipeline:
         mock_pipeline.model.predict_proba.return_value = np.array([[0.9, 0.1]])
         mock_pipeline.explainer.get_shap_factors.return_value = [
             {"rank": 1, "feature": "ext_source_mean", "feature_value": 0.8,
-             "shap_value": 0.5, "direction": "decreases_risk",
+             "shap_value": -0.5, "direction": "decreases_risk",
              "label": "Credit score", "cfpb_code": "A9", "regulation": "FCRA"}
         ]
         mock_pipeline.explainer.build_rag_query.return_value = "query"
@@ -197,3 +199,15 @@ class TestLogging:
     def test_logger_is_importable(self):
         from loanlens.utils.logging import logger
         assert logger is not None
+
+
+class TestPipelineRefusesProhibitedModel:
+    def test_model_trained_on_prohibited_features_is_rejected(self):
+        with patch("loanlens.rag.pipeline.load_production_model"), \
+             patch("loanlens.rag.pipeline.CreditExplainer"), \
+             patch("loanlens.rag.pipeline.RegulatoryRetriever"), \
+             patch("loanlens.rag.pipeline.load_preprocessing_artifacts",
+                   return_value=(["ext_source_mean", "code_gender"], {})):
+            from loanlens.rag.pipeline import LoanLensPipeline
+            with pytest.raises(ValueError, match="prohibited"):
+                LoanLensPipeline()

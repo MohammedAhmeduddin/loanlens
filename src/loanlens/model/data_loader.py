@@ -4,8 +4,7 @@ Loads feat_master from PostgreSQL feature store.
 """
 
 import pandas as pd
-import numpy as np
-from sqlalchemy import create_engine, text
+from sqlalchemy import create_engine
 from loguru import logger
 
 import sys
@@ -15,26 +14,15 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 from loanlens.config import get_settings
 
 
-# Categorical columns to encode
-CATEGORICAL_COLS = [
-    "name_contract_type",
-    "name_family_status",
-    "name_education_type",
-    "name_income_type",
-    "name_housing_type",
-    "code_gender",
-    "flag_own_car",
-    "flag_own_realty",
-    "occupation_type",
-    "organization_type",
-]
+from loanlens.model.features import (  # noqa: E402
+    CATEGORICAL_COLS,
+    NON_FEATURE_COLS,
+    build_category_maps,
+    drop_prohibited,
+    encode_categoricals,
+)
 
-# Columns to drop before training
-DROP_COLS = [
-    "sk_id_curr",
-    "target",
-    "is_unemployed",         # bool — convert separately
-]
+__all__ = ["CATEGORICAL_COLS", "load_features", "preprocess_features"]
 
 
 def load_features(limit: int = None) -> pd.DataFrame:
@@ -61,12 +49,19 @@ def load_features(limit: int = None) -> pd.DataFrame:
     return df
 
 
-def preprocess_features(df: pd.DataFrame) -> tuple[pd.DataFrame, pd.Series, list[str]]:
+def preprocess_features(
+    df: pd.DataFrame,
+    category_maps: dict[str, list[str]] | None = None,
+) -> tuple[pd.DataFrame, pd.Series, list[str]]:
     """
     Preprocess features for XGBoost training.
 
+    Prohibited-basis columns (sex, marital status, age) are removed here,
+    so they can never reach the model.
+
     Args:
         df: Raw feature DataFrame from PostgreSQL
+        category_maps: Saved categorical vocabularies. Built from df if None.
 
     Returns:
         X: Feature matrix
@@ -75,24 +70,19 @@ def preprocess_features(df: pd.DataFrame) -> tuple[pd.DataFrame, pd.Series, list
     """
     logger.info("Preprocessing features...")
 
-    # Separate target
     y = df["target"].astype(int)
 
-    # Drop non-feature columns
-    X = df.drop(columns=["sk_id_curr", "target"], errors="ignore")
+    X = df.drop(columns=list(NON_FEATURE_COLS), errors="ignore")
+    X = drop_prohibited(X)
 
-    # Convert boolean columns to int
     bool_cols = X.select_dtypes(include=["bool"]).columns.tolist()
     for col in bool_cols:
         X[col] = X[col].astype(int)
 
-    # Label encode categoricals
-    for col in CATEGORICAL_COLS:
-        if col in X.columns:
-            X[col] = X[col].astype("category").cat.codes
-            X[col] = X[col].replace(-1, np.nan)  # -1 = was NaN
+    if category_maps is None:
+        category_maps = build_category_maps(X)
+    X = encode_categoricals(X, category_maps)
 
-    # Verify no object columns remain
     obj_cols = X.select_dtypes(include=["object"]).columns.tolist()
     if obj_cols:
         logger.warning(f"Dropping remaining object columns: {obj_cols}")

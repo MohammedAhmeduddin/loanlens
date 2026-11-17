@@ -14,6 +14,7 @@ import sys
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 
 from loanlens.config import get_settings
+from loanlens.model.explain import is_citable_reason
 
 
 SYSTEM_PROMPT = """You are a compliance officer at a lending institution.
@@ -61,8 +62,8 @@ def generate_explanation(
         f"- {f['label']} (CFPB Code: {f['cfpb_code']}, "
         f"SHAP impact: {f['shap_value']:.4f})"
         for f in shap_factors
-        if f["direction"] == "increases_risk"
-    ])
+        if is_citable_reason(f)
+    ]) or "- No specific factor met the citation standard; refer to overall credit risk."
 
     user_prompt = f"""
 REGULATORY CONTEXT (use only this text for citations):

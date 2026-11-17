@@ -185,9 +185,10 @@ class TestCreditExplainer:
         assert "ECOA" in query or "FCRA" in query
 
     @patch("shap.TreeExplainer")
-    def test_direction_increases_risk_for_negative_shap(self, mock_shap, mock_model, sample_features):
+    def test_direction_increases_risk_for_positive_shap(self, mock_shap, mock_model, sample_features):
+        # Model predicts P(default): positive SHAP pushes toward default.
         mock_explainer_instance = MagicMock()
-        mock_explainer_instance.shap_values.return_value = np.array([[-0.9, -0.2, -0.1, 0.1, 0.05]])
+        mock_explainer_instance.shap_values.return_value = np.array([[0.9, -0.2, -0.1, 0.1, 0.05]])
         mock_shap.return_value = mock_explainer_instance
 
         from loanlens.model.explain import CreditExplainer

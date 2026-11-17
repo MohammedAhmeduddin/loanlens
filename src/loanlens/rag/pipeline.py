@@ -8,7 +8,6 @@ Connects: XGBoost scoring → SHAP → ChromaDB retrieval → GPT-4o-mini genera
 """
 
 import pandas as pd
-import numpy as np
 from loguru import logger
 from pathlib import Path
 
@@ -16,8 +15,12 @@ import sys
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 
 from loanlens.config import get_settings
-from loanlens.model.explain import CreditExplainer, load_production_model
-from loanlens.model.data_loader import preprocess_features
+from loanlens.model.explain import (
+    CreditExplainer,
+    load_preprocessing_artifacts,
+    load_production_model,
+)
+from loanlens.model.features import assert_no_prohibited
 from loanlens.rag.retriever import RegulatoryRetriever
 from loanlens.rag.generator import generate_explanation
 
@@ -34,6 +37,8 @@ class LoanLensPipeline:
 
         # Load credit scoring model
         self.model = load_production_model()
+        self.feature_names, self.category_maps = load_preprocessing_artifacts()
+        assert_no_prohibited(self.feature_names)
         self.explainer = CreditExplainer(self.model)
 
         # Load retriever

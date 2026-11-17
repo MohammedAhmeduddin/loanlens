@@ -5,7 +5,7 @@ import gradio as gr
 API_URL = os.getenv("API_URL", "")
 
 PRECOMPUTED = {
-    "High Risk — Young borrower, high debt": {
+    "High Risk — High debt, late payments": {
         "decision": "🔴 DECLINED — Risk Score: 89.5/100",
         "shap": "1. External credit score assessment\n   SHAP: -0.85 (+ risk) | Code: A9 - Credit score\n\n2. Insufficient length of employment\n   SHAP: -0.45 (+ risk) | Code: A13 - Length of employment\n\n3. Delinquent accounts in credit history\n   SHAP: -0.38 (+ risk) | Code: A1 - Delinquent obligations\n\n4. History of late installment payments\n   SHAP: -0.31 (+ risk) | Code: A1 - Delinquent obligations\n\n5. Debt-to-income ratio too high\n   SHAP: -0.28 (+ risk) | Code: A6 - Debt-to-income ratio",
         "notice": "We regret to inform you that your application for credit has been declined. This decision was based on information from your consumer credit report, including delinquent past obligations and insufficient employment history, as well as your debt-to-income ratio. Per 12 CFR 1002.9(a)(2) of Regulation B, you have the right to request a statement of specific reasons for this decision.",
@@ -31,13 +31,13 @@ PRECOMPUTED = {
     },
 }
 
-def analyze(income, loan, annuity, age, emp, ext, overdue, refused, late, debt, sample):
+def analyze(income, loan, annuity, emp, ext, overdue, refused, late, debt, sample):
     import httpx
     if API_URL:
         try:
             payload = {
                 "amt_income_total": income, "amt_credit": loan,
-                "amt_annuity": annuity, "age_years": age,
+                "amt_annuity": annuity,
                 "employment_years": emp, "ext_source_2": ext,
                 "bureau_overdue_count": int(overdue),
                 "prev_refused_count": int(refused),
@@ -78,13 +78,13 @@ def analyze(income, loan, annuity, age, emp, ext, overdue, refused, late, debt, 
 
 def load_sample(s):
     samples = {
-        "High Risk — Young borrower, high debt": (24000, 380000, 19000, 23, 0.5, 0.12, 4, 3, 0.6, 0.92),
-        "Medium Risk — Average borrower": (55000, 200000, 10000, 38, 4.0, 0.42, 1, 1, 0.1, 0.4),
-        "Low Risk — Stable borrower": (120000, 180000, 9000, 45, 12.0, 0.74, 0, 0, 0.0, 0.15),
+        "High Risk — High debt, late payments": (24000, 380000, 19000, 0.5, 0.12, 4, 3, 0.6, 0.92),
+        "Medium Risk — Average borrower": (55000, 200000, 10000, 4.0, 0.42, 1, 1, 0.1, 0.4),
+        "Low Risk — Stable borrower": (120000, 180000, 9000, 12.0, 0.74, 0, 0, 0.0, 0.15),
     }
-    return samples.get(s, (75000, 200000, 10000, 35, 5.0, 0.5, 0, 0, 0.0, 0.2))
+    return samples.get(s, (75000, 200000, 10000, 5.0, 0.5, 0, 0, 0.0, 0.2))
 
-SAMPLES = ["High Risk — Young borrower, high debt", "Medium Risk — Average borrower", "Low Risk — Stable borrower"]
+SAMPLES = ["High Risk — High debt, late payments", "Medium Risk — Average borrower", "Low Risk — Stable borrower"]
 
 with gr.Blocks(title="LoanLens — Credit Risk Explainer") as demo:
     gr.Markdown("""# 🔍 LoanLens
@@ -103,7 +103,6 @@ Uses XGBoost credit scoring + SHAP explainability + ChromaDB retrieval + GPT-4o-
             income = gr.Number(label="Annual Income ($)", value=24000, minimum=1000)
             loan = gr.Number(label="Loan Amount Requested ($)", value=380000, minimum=1000)
             annuity = gr.Number(label="Annual Loan Payment ($)", value=19000, minimum=100)
-            age = gr.Slider(label="Age (years)", minimum=18, maximum=75, value=23, step=1)
             emp = gr.Slider(label="Years Employed", minimum=0, maximum=40, value=0.5, step=0.5)
             ext = gr.Slider(label="External Credit Score (0=poor, 1=excellent)", minimum=0.0, maximum=1.0, value=0.12, step=0.01)
             overdue = gr.Slider(label="Overdue Accounts in Credit History", minimum=0, maximum=20, value=4, step=1)
@@ -121,7 +120,7 @@ Uses XGBoost credit scoring + SHAP explainability + ChromaDB retrieval + GPT-4o-
             metadata_out = gr.Textbox(label="📈 Model Metadata", interactive=False, lines=4)
             rights_out = gr.Textbox(label="⚖️ Applicant Rights", interactive=False, lines=2)
 
-    inputs = [income, loan, annuity, age, emp, ext, overdue, refused, late, debt, sample_dd]
+    inputs = [income, loan, annuity, emp, ext, overdue, refused, late, debt, sample_dd]
     outputs = [decision_out, shap_out, notice_out, citations_out, metadata_out, rights_out]
 
     btn.click(fn=analyze, inputs=inputs, outputs=outputs)

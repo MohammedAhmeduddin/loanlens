@@ -27,15 +27,13 @@ class ScoreRequest(BaseModel):
     amt_annuity: Optional[float] = Field(None, gt=0, description="Loan annuity amount")
     amt_goods_price: Optional[float] = Field(None, gt=0)
 
-    # Demographics
-    age_years: float = Field(..., gt=18, lt=100, description="Applicant age in years")
+    # Household (sex, marital status and age are prohibited bases under
+    # ECOA / Regulation B and are deliberately not accepted)
     cnt_children: int = Field(0, ge=0, le=20)
     cnt_fam_members: Optional[float] = Field(None, ge=1)
-    name_family_status: Optional[str] = None
     name_education_type: Optional[str] = None
     name_income_type: Optional[str] = None
     name_housing_type: Optional[str] = None
-    code_gender: Optional[str] = None
     name_contract_type: Optional[str] = None
 
     # Employment
@@ -54,7 +52,6 @@ class ScoreRequest(BaseModel):
     debt_to_income: Optional[float] = None
     credit_to_annuity: Optional[float] = None
     income_per_person: Optional[float] = None
-    employed_to_age_ratio: Optional[float] = None
 
     # Flags
     flag_own_car: Optional[str] = None
@@ -104,7 +101,6 @@ class ScoreRequest(BaseModel):
                 "amt_income_total": 75000,
                 "amt_credit": 250000,
                 "amt_annuity": 12000,
-                "age_years": 35,
                 "cnt_children": 2,
                 "employment_years": 3.5,
                 "ext_source_2": 0.35,
@@ -128,8 +124,8 @@ class ShapFactor(BaseModel):
     shap_value: float
     direction: str
     label: str
-    cfpb_code: str
-    regulation: str
+    cfpb_code: Optional[str] = None
+    regulation: Optional[str] = None
 
 
 class RetrievedPassage(BaseModel):

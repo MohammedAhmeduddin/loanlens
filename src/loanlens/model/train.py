@@ -21,6 +21,8 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 
 from loanlens.config import get_settings
 from loanlens.model.data_loader import load_features, preprocess_features
+from loanlens.model.features import FAIRNESS_AUDIT_COLS, build_category_maps
+from loanlens.model.fairness import fairness_report
 from loanlens.model.evaluate import compute_metrics
 
 
@@ -59,7 +61,9 @@ def train_model(
 
         # ── 1. Load data ──────────────────────────────────────────
         df = load_features(limit=limit)
-        X, y, feature_names = preprocess_features(df)
+        category_maps = build_category_maps(df)
+        X, y, feature_names = preprocess_features(df, category_maps)
+        audit_df = df[[c for c in FAIRNESS_AUDIT_COLS if c in df.columns]]
 
         # ── 2. Train/val/test split ───────────────────────────────
         X_train, X_temp, y_train, y_temp = train_test_split(
@@ -140,6 +144,20 @@ def train_model(
         logger.info(f"Val AUC:   {val_metrics['val_auc']:.4f}")
         logger.info(f"Test AUC:  {test_metrics['test_auc']:.4f}")
 
+        # ── 5b. Fairness audit (sex and age are not model inputs) ──
+        report = fairness_report(
+            model.predict_proba(X_test)[:, 1],
+            audit_df.loc[X_test.index],
+            approve_below=settings.review_threshold,
+        )
+        mlflow.log_dict(report, "fairness/fairness_report.json")
+        for attr, result in report.items():
+            if result["min_ratio"] is not None:
+                mlflow.log_metric(f"fairness_min_impact_ratio_{attr}", result["min_ratio"])
+            logger.info(f"Fairness [{attr}] min impact ratio: {result['min_ratio']} | flagged: {result['flagged']}")
+            for group, g in result["groups"].items():
+                logger.info(f"  {group:10} n={g['n']:>6,}  approval={g['approval_rate']:.3f}  ratio={g['impact_ratio']:.3f}")
+
         # ── 6. Log feature importance ─────────────────────────────
         importance_df = pd.DataFrame({
             "feature": feature_names,
@@ -163,6 +181,10 @@ def train_model(
         with open(feature_names_path, "w") as f:
             json.dump(feature_names, f)
         mlflow.log_artifact(feature_names_path, "feature_names")
+
+        # Serving reads these to encode requests exactly like training
+        mlflow.log_dict(feature_names, "preprocessing/feature_names.json")
+        mlflow.log_dict(category_maps, "preprocessing/category_maps.json")
 
         # ── 8. Log model ──────────────────────────────────────────
         mlflow.xgboost.log_model(
