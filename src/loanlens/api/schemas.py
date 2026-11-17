@@ -220,6 +220,7 @@ class ExplainResponse(BaseModel):
     regulatory_basis: Optional[str]
     applicant_rights: Optional[str]
     grounding_score: Optional[float]
+    citation_check: Optional[dict] = None
     generation_time_ms: int
 
     # Demo mode flag

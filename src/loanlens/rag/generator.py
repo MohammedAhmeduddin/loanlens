@@ -84,12 +84,14 @@ CREDIT DECISION:
 - Principal reasons (state exactly these, add no others):
 {reason_lines}
 
-Write a structured adverse action notice. Return a JSON object with:
+Write a draft adverse action notice that states the principal reasons above.
+Because the reasons are stated, do not tell the applicant to request a
+statement of reasons. Return a JSON object with:
 {{
     "adverse_action_notice": "Full formal adverse action notice text (3-5 sentences)",
     "primary_reasons": ["reason 1", "reason 2", "reason 3"],
     "regulatory_basis": "Specific regulation section cited from the context above",
-    "applicant_rights": "One sentence describing applicant's right to obtain credit report"
+    "applicant_rights": "One sentence: the right to a free copy of the credit report used, and to dispute its accuracy"
 }}
 
 Return ONLY the JSON object, no other text.

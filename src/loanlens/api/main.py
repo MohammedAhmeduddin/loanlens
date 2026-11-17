@@ -157,6 +157,7 @@ async def explain(request: ExplainRequest):
             regulatory_basis=result.get("regulatory_basis"),
             applicant_rights=result.get("applicant_rights"),
             grounding_score=result.get("grounding_score"),
+            citation_check=result.get("citation_check"),
             generation_time_ms=result.get("generation_time_ms", 0),
         )
     except Exception as e:

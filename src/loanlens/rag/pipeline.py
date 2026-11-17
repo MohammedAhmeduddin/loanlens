@@ -94,35 +94,34 @@ class LoanLensPipeline:
             f"Decision: {score_result['decision']}"
         )
 
-        # 2. SHAP explanation
+        # 2. SHAP explanation (shown for every decision)
         shap_factors = self.explainer.get_shap_factors(features, n_top=5)
-        rag_query = self.explainer.build_rag_query(shap_factors)
-        adverse_action_codes = self.explainer.get_adverse_action_codes(shap_factors)
-
         logger.info(f"SHAP top factor: {shap_factors[0]['label']}")
 
-        # 3. Retrieve regulatory passages
-        passages = self.retriever.retrieve_for_explanation(rag_query)
-        logger.info(f"Retrieved {len(passages)} regulatory passages")
-
-        # 4. Adverse action notice only for declines. "review" goes to a
-        #    human underwriter; no adverse action has been taken yet.
+        # 3-4. Only a decline is an adverse action: only then are reason codes
+        #      stated, regulations retrieved and a notice drafted. "review" goes
+        #      to a human underwriter; "approve" needs no notice.
+        adverse_action_codes, passages = [], []
+        explanation = {
+            "adverse_action_notice": None,
+            "primary_reasons": [],
+            "regulatory_basis": None,
+            "applicant_rights": None,
+            "grounding_score": None,
+            "citation_check": None,
+            "generation_time_ms": 0,
+        }
         if score_result["decision"] == "decline":
+            adverse_action_codes = self.explainer.get_adverse_action_codes(shap_factors)
+            rag_query = self.explainer.build_rag_query(shap_factors)
+            passages = self.retriever.retrieve_for_explanation(rag_query)
+            logger.info(f"Retrieved {len(passages)} regulatory passages")
             explanation = generate_explanation(
                 shap_factors=shap_factors,
                 retrieved_passages=passages,
                 risk_score=score_result["probability"],
                 decision=score_result["decision"],
             )
-        else:
-            explanation = {
-                "adverse_action_notice": None,
-                "primary_reasons": [],
-                "regulatory_basis": None,
-                "applicant_rights": None,
-                "grounding_score": None,
-                "generation_time_ms": 0,
-            }
 
         return {
             **score_result,
@@ -134,5 +133,6 @@ class LoanLensPipeline:
             "regulatory_basis": explanation.get("regulatory_basis"),
             "applicant_rights": explanation.get("applicant_rights"),
             "grounding_score": explanation.get("grounding_score"),
+            "citation_check": explanation.get("citation_check"),
             "generation_time_ms": explanation.get("generation_time_ms", 0),
         }
