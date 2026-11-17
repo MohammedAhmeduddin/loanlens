@@ -83,3 +83,62 @@ def fairness_report(
     if "age_years" in audit_df.columns:
         report["age_band"] = adverse_impact(approved, age_band(audit_df["age_years"].reset_index(drop=True)))
     return report
+
+
+def group_outcomes(probabilities, y_true, group: pd.Series, approve_below: float) -> dict:
+    """Per-group calibration and error rates at one cutoff.
+
+    - actual_default vs mean_score: is the score a real probability for this group?
+    - repayers_turned_away: share of people who repaid but were not approved.
+      Large gaps between groups here mean good borrowers in one group pay
+      a higher price for the model's mistakes.
+    """
+    t = pd.DataFrame({
+        "p": np.asarray(probabilities, dtype=float),
+        "y": np.asarray(y_true, dtype=int),
+        "g": group.reset_index(drop=True).values,
+    }).dropna(subset=["g"])
+    t["approved"] = t["p"] < approve_below
+    out = {}
+    for name, part in t.groupby("g"):
+        if len(part) < MIN_GROUP_SIZE:
+            continue
+        repayers = part[part["y"] == 0]
+        defaulters = part[part["y"] == 1]
+        out[str(name)] = {
+            "n": int(len(part)),
+            "actual_default": round(float(part["y"].mean()), 4),
+            "mean_score": round(float(part["p"].mean()), 4),
+            "approval_rate": round(float(part["approved"].mean()), 4),
+            "repayers_turned_away": round(float((~repayers["approved"]).mean()), 4) if len(repayers) else None,
+            "defaulters_caught": round(float((~defaulters["approved"]).mean()), 4) if len(defaulters) else None,
+        }
+    return out
+
+
+def threshold_table(probabilities, y_true, audit_df: pd.DataFrame, cutoffs) -> pd.DataFrame:
+    """Trade-offs of each candidate approval cutoff, so the threshold is a
+    visible business choice: approval, losses, and fairness side by side."""
+    p = np.asarray(probabilities, dtype=float)
+    y = np.asarray(y_true, dtype=int)
+    audit_df = audit_df.reset_index(drop=True)
+    ages = age_band(audit_df["age_years"]) if "age_years" in audit_df else None
+    rows = []
+    for c in cutoffs:
+        approved = p < c
+        row = {
+            "cutoff": c,
+            "approval_rate": approved.mean(),
+            "default_rate_approved": y[approved].mean() if approved.any() else np.nan,
+            "defaulters_caught": (~approved[y == 1]).mean(),
+            "repayers_turned_away": (~approved[y == 0]).mean(),
+        }
+        rep = fairness_report(p, audit_df, approve_below=c)
+        row["min_ratio_sex"] = rep.get("sex", {}).get("min_ratio")
+        row["min_ratio_age"] = rep.get("age_band", {}).get("min_ratio")
+        if ages is not None:
+            outcomes = group_outcomes(p, y, ages, approve_below=c)
+            row["turned_away_under_25"] = outcomes.get("under_25", {}).get("repayers_turned_away")
+            row["turned_away_62_plus"] = outcomes.get("62_plus", {}).get("repayers_turned_away")
+        rows.append(row)
+    return pd.DataFrame(rows).round(3)

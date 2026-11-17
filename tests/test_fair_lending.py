@@ -199,3 +199,57 @@ class TestFairnessAudit:
         from loanlens.model.fairness import age_band
         bands = age_band(pd.Series([24.9, 25, 61.9, 62])).tolist()
         assert bands == ["under_25", "25_39", "40_61", "62_plus"]
+
+
+# ── Calibration and cutoff trade-offs ──────────────────────────
+
+class TestGroupOutcomes:
+    def test_repayers_turned_away_and_calibration(self):
+        from loanlens.model.fairness import group_outcomes
+        # Group A: 40 repayers (10 declined), 10 defaulters (all declined)
+        p = [0.9] * 10 + [0.1] * 30 + [0.9] * 10
+        y = [0] * 40 + [1] * 10
+        out = group_outcomes(p, y, pd.Series(["A"] * 50), approve_below=0.5)["A"]
+        assert out["repayers_turned_away"] == 0.25
+        assert out["defaulters_caught"] == 1.0
+        assert out["actual_default"] == 0.2
+        assert out["mean_score"] == pytest.approx((0.9 * 20 + 0.1 * 30) / 50, abs=1e-4)
+
+    def test_small_groups_skipped(self):
+        from loanlens.model.fairness import group_outcomes
+        out = group_outcomes([0.1] * 5, [0] * 5, pd.Series(["tiny"] * 5), approve_below=0.5)
+        assert out == {}
+
+
+class TestThresholdTable:
+    def test_higher_cutoff_approves_more_and_turns_away_fewer(self):
+        from loanlens.model.fairness import threshold_table
+        df = _feature_store_frame(n=600)
+        rng = np.random.default_rng(2)
+        probs = rng.uniform(0, 0.6, len(df))
+        y = (rng.uniform(size=len(df)) < probs).astype(int)
+        table = threshold_table(probs, y, df[["code_gender", "age_years"]], cutoffs=[0.1, 0.3, 0.5])
+        assert list(table["cutoff"]) == [0.1, 0.3, 0.5]
+        assert table["approval_rate"].is_monotonic_increasing
+        assert table["repayers_turned_away"].is_monotonic_decreasing
+        for col in ["default_rate_approved", "defaulters_caught", "min_ratio_sex",
+                    "min_ratio_age", "turned_away_under_25", "turned_away_62_plus"]:
+            assert col in table.columns
+
+
+class TestCalibrationMetrics:
+    def test_compute_metrics_reports_calibration(self):
+        from unittest.mock import MagicMock
+        from loanlens.model.evaluate import compute_metrics
+        model = MagicMock()
+        model.predict_proba.return_value = np.array([[0.9, 0.1], [0.8, 0.2], [0.3, 0.7], [0.6, 0.4]])
+        m = compute_metrics(model, pd.DataFrame({"a": range(4)}), pd.Series([0, 0, 1, 1]), prefix="test")
+        assert m["test_mean_predicted"] == pytest.approx(0.35)
+        assert m["test_actual_default_rate"] == 0.5
+        assert 0 <= m["test_brier"] <= 1
+
+
+def test_class_weighting_is_off_by_default():
+    import inspect
+    from loanlens.model.train import train_model
+    assert inspect.signature(train_model).parameters["use_class_weight"].default is False
