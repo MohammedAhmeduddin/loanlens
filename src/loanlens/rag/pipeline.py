@@ -103,8 +103,9 @@ class LoanLensPipeline:
         passages = self.retriever.retrieve_for_explanation(rag_query)
         logger.info(f"Retrieved {len(passages)} regulatory passages")
 
-        # 4. Generate explanation (only for declines and reviews)
-        if score_result["decision"] in ["decline", "review"]:
+        # 4. Adverse action notice only for declines. "review" goes to a
+        #    human underwriter; no adverse action has been taken yet.
+        if score_result["decision"] == "decline":
             explanation = generate_explanation(
                 shap_factors=shap_factors,
                 retrieved_passages=passages,
