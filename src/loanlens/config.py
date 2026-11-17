@@ -58,7 +58,7 @@ class Settings(BaseSettings):
     chunk_size: int = 512
     chunk_overlap: int = 50
     retrieval_k: int = 5          # Initial retrieval count
-    rerank_top_n: int = 3         # After reranking, keep top 3
+    rerank_top_n: int = 3         # Passages kept after the similarity filter (no reranker)
 
     # MLflow
     mlflow_tracking_uri: str = "./mlflow/mlruns"

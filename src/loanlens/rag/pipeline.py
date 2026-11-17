@@ -36,8 +36,10 @@ class LoanLensPipeline:
         logger.info("Initializing LoanLens pipeline...")
 
         # Load credit scoring model
-        self.model = load_production_model()
-        self.feature_names, self.category_maps = load_preprocessing_artifacts()
+        # Resolve one model version and load both the model and its
+        # preprocessing from it, so they can never come from different runs.
+        self.feature_names, self.category_maps, self.model_version = load_preprocessing_artifacts()
+        self.model = load_production_model(self.model_version)
         assert_no_prohibited(self.feature_names)
         self.explainer = CreditExplainer(self.model)
 
@@ -103,8 +105,9 @@ class LoanLensPipeline:
         passages = self.retriever.retrieve_for_explanation(rag_query)
         logger.info(f"Retrieved {len(passages)} regulatory passages")
 
-        # 4. Generate explanation (only for declines and reviews)
-        if score_result["decision"] in ["decline", "review"]:
+        # 4. Adverse action notice only for declines. "review" goes to a
+        #    human underwriter; no adverse action has been taken yet.
+        if score_result["decision"] == "decline":
             explanation = generate_explanation(
                 shap_factors=shap_factors,
                 retrieved_passages=passages,

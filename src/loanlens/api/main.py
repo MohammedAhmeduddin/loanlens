@@ -176,14 +176,13 @@ async def explain(request: ExplainRequest):
 
 @app.get("/model/info")
 async def model_info():
-    """Return current production model metadata."""
+    """Metadata for the exact model version this API is serving."""
     if _pipeline is None:
         raise HTTPException(status_code=503, detail="Model not loaded")
 
     try:
-        from loanlens.model.registry import get_production_model_info
-        info = get_production_model_info()
-        return info
+        from loanlens.model.registry import get_model_version_info
+        return get_model_version_info(_pipeline.model_version)
     except Exception as e:
         logger.exception(f"Model info error: {e}")
         raise HTTPException(status_code=500, detail="Model info unavailable")

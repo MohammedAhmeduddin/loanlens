@@ -243,7 +243,7 @@ class CreditExplainer:
         return unique_codes[:5]
 
 
-def load_production_model():
+def load_production_model(version: int | str | None = None):
     """
     Load the Production model from MLflow registry.
 
@@ -254,20 +254,20 @@ def load_production_model():
     mlflow.set_tracking_uri(settings.mlflow_tracking_uri)
 
     try:
-        model = mlflow.xgboost.load_model(
-            f"models:/{settings.mlflow_model_name}/latest"
-        )
-        logger.info(f"Loaded model: {settings.mlflow_model_name}/latest")
+        ref = version if version is not None else "latest"
+        model = mlflow.xgboost.load_model(f"models:/{settings.mlflow_model_name}/{ref}")
+        logger.info(f"Loaded model: {settings.mlflow_model_name}/{ref}")
         return model
     except Exception as e:
         logger.error(f"Failed to load model from registry: {e}")
         raise
 
 
-def load_preprocessing_artifacts() -> tuple[list[str], dict[str, list[str]]]:
+def load_preprocessing_artifacts() -> tuple[list[str], dict[str, list[str]], int]:
     """
     Load the feature order and categorical vocabularies saved by train.py
-    for the same model version that load_production_model() serves.
+    for the latest registered model version, and return that version number
+    so the caller loads exactly the same model.
 
     Raises if the model predates these artifacts: such a model was trained
     with prohibited-basis features and per-run encodings, and must be retrained.
@@ -292,4 +292,4 @@ def load_preprocessing_artifacts() -> tuple[list[str], dict[str, list[str]]]:
         f"Loaded preprocessing for version {latest.version}: "
         f"{len(feature_names)} features, {len(category_maps)} categorical vocabularies"
     )
-    return feature_names, category_maps
+    return feature_names, category_maps, int(latest.version)

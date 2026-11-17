@@ -18,7 +18,7 @@ class TestLoanLensPipeline:
              patch("loanlens.rag.pipeline.CreditExplainer") as mock_explainer, \
              patch("loanlens.rag.pipeline.RegulatoryRetriever") as mock_retriever, \
              patch("loanlens.rag.pipeline.load_preprocessing_artifacts",
-                   return_value=(["ext_source_mean"], {})):
+                   return_value=(["ext_source_mean"], {}, 3)):
 
             mock_model.return_value = MagicMock()
             mock_explainer.return_value = MagicMock()
@@ -213,7 +213,28 @@ class TestPipelineRefusesProhibitedModel:
              patch("loanlens.rag.pipeline.CreditExplainer"), \
              patch("loanlens.rag.pipeline.RegulatoryRetriever"), \
              patch("loanlens.rag.pipeline.load_preprocessing_artifacts",
-                   return_value=(["ext_source_mean", "code_gender"], {})):
+                   return_value=(["ext_source_mean", "code_gender"], {}, 3)):
             from loanlens.rag.pipeline import LoanLensPipeline
             with pytest.raises(ValueError, match="prohibited"):
                 LoanLensPipeline()
+
+
+class TestNoticeOnlyForDeclines:
+    @patch("loanlens.rag.pipeline.generate_explanation")
+    def test_review_does_not_generate_notice(self, mock_gen):
+        with patch("loanlens.rag.pipeline.load_production_model"), \
+             patch("loanlens.rag.pipeline.CreditExplainer"), \
+             patch("loanlens.rag.pipeline.RegulatoryRetriever"), \
+             patch("loanlens.rag.pipeline.load_preprocessing_artifacts",
+                   return_value=(["ext_source_mean"], {}, 3)):
+            from loanlens.rag.pipeline import LoanLensPipeline
+            pipeline = LoanLensPipeline()
+        pipeline.model = MagicMock()
+        pipeline.model.predict_proba.return_value = np.array([[0.75, 0.25]])
+        pipeline.explainer = MagicMock()
+        pipeline.explainer.get_shap_factors.return_value = [{"label": "x"}]
+        pipeline.retriever = MagicMock()
+        result = pipeline.explain(pd.DataFrame({"feature": [1.0]}))
+        assert result["decision"] == "review"
+        mock_gen.assert_not_called()
+        assert result["adverse_action_notice"] is None
