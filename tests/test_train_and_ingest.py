@@ -265,7 +265,6 @@ class TestAPIMain:
             "amt_income_total": 75000,
             "amt_credit": 250000,
             "amt_annuity": 12000,
-            "age_years": 35,
         }
         client.post("/score", json=request)
         mock_pipeline.score.assert_called_once()
@@ -275,7 +274,6 @@ class TestAPIMain:
             "amt_income_total": 75000,
             "amt_credit": 250000,
             "amt_annuity": 12000,
-            "age_years": 35,
         }
         client.post("/explain", json=request)
         mock_pipeline.explain.assert_called_once()
@@ -287,7 +285,6 @@ class TestAPIMain:
         response = client.post("/score", json={
             "amt_income_total": 75000,
             "amt_credit": 250000,
-            "age_years": 35,
         })
         assert response.status_code == 503
         main_module._pipeline = original
@@ -299,7 +296,6 @@ class TestAPIMain:
         response = client.post("/explain", json={
             "amt_income_total": 75000,
             "amt_credit": 250000,
-            "age_years": 35,
         })
         assert response.status_code == 503
         main_module._pipeline = original

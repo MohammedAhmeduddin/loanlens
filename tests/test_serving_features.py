@@ -106,3 +106,29 @@ def test_demo_payloads_are_consistent():
     from loanlens.dashboard.samples import SAMPLES, build_payload
     for inputs in SAMPLES.values():
         ExplainRequest(**build_payload(*inputs))   # raises if contradictory
+
+
+def test_demo_payload_leaves_only_commonly_missing_fields_empty():
+    """Fields never missing in training must not be missing in the demo."""
+    from loanlens.api.schemas import ExplainRequest
+    from loanlens.dashboard.samples import SAMPLES, build_payload
+    from loanlens.model.features import PROHIBITED_BASIS_FEATURES
+    names = set(re.findall(r"AS (\w+)", FEAT_MASTER)) | set(re.findall(r"app\.(\w+),", FEAT_MASTER)) \
+        | set(re.findall(r"(?:bureau|prev|instalment)\.(\w+),", FEAT_MASTER))
+    names -= {"sk_id_curr", "target", *PROHIBITED_BASIS_FEATURES}
+    # Often empty in the Home Credit training data too
+    commonly_missing = {"ext_source_1", "ext_source_3", "occupation_type"}
+    for inputs in SAMPLES.values():
+        d = derive_features(ExplainRequest(**build_payload(*inputs)).model_dump())
+        assert {n for n in names if d.get(n) is None} <= commonly_missing
+
+
+def test_every_model_feature_can_be_sent_to_the_api():
+    """Each feat_master column is either an API field or computed from them."""
+    from loanlens.api.schemas import ScoreRequest
+    from loanlens.model.features import PROHIBITED_BASIS_FEATURES
+    names = set(re.findall(r"AS (\w+)", FEAT_MASTER)) | set(re.findall(r"app\.(\w+),", FEAT_MASTER)) \
+        | set(re.findall(r"(?:bureau|prev|instalment)\.(\w+),", FEAT_MASTER))
+    names -= {"sk_id_curr", "target", *PROHIBITED_BASIS_FEATURES}
+    computed = {"total_debt_burden", "total_credit_applications", "total_delinquency_count"}
+    assert names - computed - set(ScoreRequest.model_fields) == set()

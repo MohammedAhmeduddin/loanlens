@@ -24,15 +24,53 @@ SAMPLES: dict[str, tuple] = {
 # late-payment rate, but not for how many records those come from. The demo
 # assumes this credit history; it is shown on the page.
 DEMO_HISTORY = {"bureau_loan_count": 5, "prev_app_count": 3, "instalment_count": 24}
+DEMO_BUREAU_TOTAL_CREDIT = 500_000
+
+# Application-form fields the sliders do not cover. Training never has these
+# missing, so the demo states a typical applicant instead of leaving them blank.
+DEMO_APPLICATION = {
+    "name_contract_type": "Cash loans",
+    "name_income_type": "Working",
+    "name_education_type": "Secondary / secondary special",
+    "name_housing_type": "House / apartment",
+    "flag_own_car": "N",
+    "flag_own_realty": "Y",
+    "cnt_fam_members": 2,
+    "region_rating_client": 2,
+    "region_rating_client_w_city": 2,
+    "reg_city_not_live_city": 0,
+    "reg_city_not_work_city": 0,
+    "organization_type": "Business Entity Type 3",
+    "flag_email": 0,
+    "flag_work_phone": 0,
+    "amt_req_credit_bureau_hour": 0,
+    "amt_req_credit_bureau_day": 0,
+    "amt_req_credit_bureau_week": 0,
+    "amt_req_credit_bureau_mon": 0,
+    "amt_req_credit_bureau_qrt": 0,
+    "amt_req_credit_bureau_year": 1,
+    # history dates, days before the application
+    "bureau_oldest_credit_days": -2500,
+    "bureau_newest_credit_days": -300,
+    "prev_first_decision_days": -2000,
+    "prev_last_decision_days": -400,
+    "avg_payment_ratio": 1.0,
+}
 HISTORY_NOTE = (
-    "Assumed history for every form input: 5 credit bureau loans, "
-    "3 previous applications, 24 past instalments."
+    "Fixed for every form input: a working applicant with secondary education, "
+    "a cash loan for goods worth the loan amount, family of 2, owns a home, no car; "
+    "credit history of 5 bureau loans over ~7 years (total credit 500,000), 3 previous "
+    "applications, 24 past instalments paid in full on average, 1 bureau inquiry this year."
 )
 
 
 def build_payload(income, loan, annuity, emp, ext, overdue, refused, late, debt) -> dict:
     """Dashboard inputs -> API request body (a consistent credit history)."""
     return {
+        **DEMO_APPLICATION,
+        "amt_goods_price": loan,
+        "bureau_total_credit": DEMO_BUREAU_TOTAL_CREDIT,
+        "bureau_total_debt": round(debt * DEMO_BUREAU_TOTAL_CREDIT, 2),
         "bureau_loan_count": max(DEMO_HISTORY["bureau_loan_count"], int(overdue)),
         "prev_app_count": max(DEMO_HISTORY["prev_app_count"], int(refused)),
         "instalment_count": DEMO_HISTORY["instalment_count"],
