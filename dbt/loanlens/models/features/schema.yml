@@ -1,0 +1,17 @@
+version: 2
+
+models:
+  - name: feat_master
+    description: >
+      Master feature table for XGBoost credit scoring model.
+      One row per borrower. 90+ features across all data sources.
+    columns:
+      - name: sk_id_curr
+        description: Unique borrower identifier
+        tests:
+          - unique
+          - not_null
+      - name: target
+        description: Default label — 1=defaulted, 0=repaid
+        tests:
+          - not_null

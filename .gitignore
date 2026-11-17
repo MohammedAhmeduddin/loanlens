@@ -21,7 +21,7 @@ mlflow/mlruns/
 chroma_db/
 *.pkl
 *.joblib
-models/
+/models/
 
 # Notebooks checkpoints
 .ipynb_checkpoints/
@@ -38,3 +38,5 @@ data/regulations/
 dbt/logs/
 dbt/loanlens/logs/
 image.png
+
+.coverage
