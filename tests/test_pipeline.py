@@ -50,10 +50,16 @@ class TestLoanLensPipeline:
         assert result["decision"] == "approve"
 
     def test_score_review(self, mock_pipeline):
-        mock_pipeline.model.predict_proba.return_value = np.array([[0.65, 0.35]])
+        mock_pipeline.model.predict_proba.return_value = np.array([[0.75, 0.25]])
         X = pd.DataFrame({"feature": [1.0]})
         result = mock_pipeline.score(X)
         assert result["decision"] == "review"
+
+    def test_cutoff_boundaries(self, mock_pipeline):
+        cases = [(0.199, "approve"), (0.20, "review"), (0.349, "review"), (0.35, "decline")]
+        for prob, expected in cases:
+            mock_pipeline.model.predict_proba.return_value = np.array([[1 - prob, prob]])
+            assert mock_pipeline.score(pd.DataFrame({"feature": [1.0]}))["decision"] == expected
 
     def test_score_returns_required_keys(self, mock_pipeline):
         mock_pipeline.model.predict_proba.return_value = np.array([[0.3, 0.7]])
