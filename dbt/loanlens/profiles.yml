@@ -6,7 +6,7 @@ loanlens:
       host: localhost
       port: 5432
       user: loanlens
-      password: loanlens_dev_password
+      password: "{{ env_var('POSTGRES_PASSWORD') }}"
       dbname: loanlens
       schema: staging
       threads: 4

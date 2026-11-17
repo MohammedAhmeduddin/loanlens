@@ -1,0 +1,42 @@
+version: 2
+
+models:
+  - name: stg_application
+    description: Cleaned loan application data. One row per applicant.
+    columns:
+      - name: sk_id_curr
+        description: Unique borrower identifier
+        tests:
+          - unique
+          - not_null
+      - name: target
+        description: Default label 1=defaulted 0=repaid
+        tests:
+          - not_null
+
+  - name: stg_bureau
+    description: Aggregated bureau history per customer.
+    columns:
+      - name: sk_id_curr
+        description: Unique borrower identifier
+        tests:
+          - unique
+          - not_null
+
+  - name: stg_previous_application
+    description: Aggregated previous application history per customer.
+    columns:
+      - name: sk_id_curr
+        description: Unique borrower identifier
+        tests:
+          - unique
+          - not_null
+
+  - name: stg_installments
+    description: Aggregated payment behavior per customer.
+    columns:
+      - name: sk_id_curr
+        description: Unique borrower identifier
+        tests:
+          - unique
+          - not_null
