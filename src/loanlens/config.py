@@ -66,10 +66,11 @@ class Settings(BaseSettings):
     mlflow_model_name: str = "CreditScoringModel"
 
     # Decision cutoffs on the calibrated probability of default.
-    # Chosen from the cutoff table logged by train.py (test set, model v3):
-    # review at 0.20 -> 91% auto-approved, 6.1% default rate among approved,
-    # 30% of defaulters routed away from auto-approval; age-band impact ratio
-    # 0.80 (borderline), so those cases go to human review rather than decline.
+    # Chosen from the cutoff table logged by train.py (test set, model v4):
+    # review at 0.20 -> 91.3% auto-approved, 6.0% default rate among approved,
+    # 31.6% of defaulters routed to review or decline; impact ratios 0.95 (sex)
+    # and 0.80 (age band, at the four-fifths line), so borderline cases go to
+    # human review rather than decline.
     review_threshold: float = 0.20
     decline_threshold: float = 0.35
 
