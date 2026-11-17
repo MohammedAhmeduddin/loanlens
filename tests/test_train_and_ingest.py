@@ -252,10 +252,13 @@ class TestAPIMain:
         return TestClient(app)
 
     def test_model_info_endpoint(self, client):
-        with patch("loanlens.model.registry.get_production_model_info") as mock_info:
-            mock_info.return_value = {"val_auc": 0.77, "model_name": "CreditScoringModel"}
+        import loanlens.api.main as main_module
+        main_module._pipeline.model_version = 3
+        with patch("loanlens.model.registry.get_model_version_info") as mock_info:
+            mock_info.return_value = {"version": 3, "model_name": "CreditScoringModel"}
             response = client.get("/model/info")
             assert response.status_code == 200
+            mock_info.assert_called_once_with(3)  # reports the version being served
 
     def test_score_pipeline_called(self, client, mock_pipeline):
         request = {

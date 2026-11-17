@@ -105,6 +105,31 @@ def get_production_model_info(model_name: str = None) -> dict:
     return info
 
 
+def get_model_version_info(version: int, model_name: str = None) -> dict:
+    """Metadata for one registered model version (the one the API serves)."""
+    settings = get_settings()
+    client = get_client()
+    name = model_name or settings.mlflow_model_name
+    v = client.get_model_version(name, str(version))
+    run = client.get_run(v.run_id)
+    m, params = run.data.metrics, run.data.params
+    return {
+        "model_name": name,
+        "version": int(v.version),
+        "run_id": v.run_id,
+        "test_auc": m.get("test_auc"),
+        "test_ks": m.get("test_ks"),
+        "test_gini": m.get("test_gini"),
+        "test_brier": m.get("test_brier"),
+        "test_mean_predicted": m.get("test_mean_predicted"),
+        "test_actual_default_rate": m.get("test_actual_default_rate"),
+        "n_features": params.get("n_features"),
+        "train_size": params.get("train_size"),
+        "decline_threshold": settings.decline_threshold,
+        "review_threshold": settings.review_threshold,
+    }
+
+
 if __name__ == "__main__":
     # Promote version 1 to Production
     settings = get_settings()

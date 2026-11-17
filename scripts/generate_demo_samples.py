@@ -17,8 +17,6 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
-from mlflow.tracking import MlflowClient  # noqa: E402
-
 from loanlens.api.main import request_to_dataframe  # noqa: E402
 from loanlens.api.schemas import ExplainRequest  # noqa: E402
 from loanlens.config import get_settings  # noqa: E402
@@ -29,8 +27,6 @@ from loanlens.rag.pipeline import LoanLensPipeline  # noqa: E402
 def main() -> None:
     settings = get_settings()
     pipeline = LoanLensPipeline()
-    versions = MlflowClient().search_model_versions(f"name='{settings.mlflow_model_name}'")
-    model_version = max(int(v.version) for v in versions)
 
     out = {}
     for name, inputs in SAMPLES.items():
@@ -39,7 +35,7 @@ def main() -> None:
         result = pipeline.explain(X)
         out[name] = {
             "inputs": list(inputs),
-            "model_version": model_version,
+            "model_version": pipeline.model_version,
             "llm_model": settings.openai_model,
             "generated_at": date.today().isoformat(),
             "result": result,

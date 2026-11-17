@@ -1,6 +1,6 @@
 """
 Regulatory chunk retrieval from ChromaDB.
-Cosine similarity search + optional cross-encoder reranking.
+Cosine similarity search with a minimum-similarity filter (no reranker).
 """
 
 import chromadb

@@ -36,8 +36,10 @@ class LoanLensPipeline:
         logger.info("Initializing LoanLens pipeline...")
 
         # Load credit scoring model
-        self.model = load_production_model()
-        self.feature_names, self.category_maps = load_preprocessing_artifacts()
+        # Resolve one model version and load both the model and its
+        # preprocessing from it, so they can never come from different runs.
+        self.feature_names, self.category_maps, self.model_version = load_preprocessing_artifacts()
+        self.model = load_production_model(self.model_version)
         assert_no_prohibited(self.feature_names)
         self.explainer = CreditExplainer(self.model)
 

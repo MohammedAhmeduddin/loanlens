@@ -18,7 +18,7 @@ class TestLoanLensPipeline:
              patch("loanlens.rag.pipeline.CreditExplainer") as mock_explainer, \
              patch("loanlens.rag.pipeline.RegulatoryRetriever") as mock_retriever, \
              patch("loanlens.rag.pipeline.load_preprocessing_artifacts",
-                   return_value=(["ext_source_mean"], {})):
+                   return_value=(["ext_source_mean"], {}, 3)):
 
             mock_model.return_value = MagicMock()
             mock_explainer.return_value = MagicMock()
@@ -213,7 +213,7 @@ class TestPipelineRefusesProhibitedModel:
              patch("loanlens.rag.pipeline.CreditExplainer"), \
              patch("loanlens.rag.pipeline.RegulatoryRetriever"), \
              patch("loanlens.rag.pipeline.load_preprocessing_artifacts",
-                   return_value=(["ext_source_mean", "code_gender"], {})):
+                   return_value=(["ext_source_mean", "code_gender"], {}, 3)):
             from loanlens.rag.pipeline import LoanLensPipeline
             with pytest.raises(ValueError, match="prohibited"):
                 LoanLensPipeline()
@@ -226,7 +226,7 @@ class TestNoticeOnlyForDeclines:
              patch("loanlens.rag.pipeline.CreditExplainer"), \
              patch("loanlens.rag.pipeline.RegulatoryRetriever"), \
              patch("loanlens.rag.pipeline.load_preprocessing_artifacts",
-                   return_value=(["ext_source_mean"], {})):
+                   return_value=(["ext_source_mean"], {}, 3)):
             from loanlens.rag.pipeline import LoanLensPipeline
             pipeline = LoanLensPipeline()
         pipeline.model = MagicMock()

@@ -1,7 +1,7 @@
 """
-GPT-4o-mini explanation generator.
+Adverse action notice generator (OpenAI chat model, JSON mode).
 Takes retrieved regulatory passages + SHAP factors
-and generates a structured ECOA-compliant adverse action notice.
+and drafts an adverse action notice. Reasons and citation checks are done in code.
 """
 
 import json
@@ -15,6 +15,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 
 from loanlens.config import get_settings
 from loanlens.model.explain import is_citable_reason
+from loanlens.rag.citations import check_citations
 
 
 SYSTEM_PROMPT = """You are a compliance officer at a lending institution.
@@ -28,6 +29,16 @@ You must only cite regulations that appear in the provided context.
 Never invent regulatory citations. Never use prohibited bases under ECOA
 (race, color, religion, national origin, sex, marital status, age).
 """
+
+
+def principal_reasons(shap_factors: list[dict]) -> list[str]:
+    """Citable risk factors as reason statements, one per reason code."""
+    seen, reasons = set(), []
+    for f in shap_factors:
+        if is_citable_reason(f) and f["cfpb_code"] not in seen:
+            seen.add(f["cfpb_code"])
+            reasons.append(f["label"])
+    return reasons[:4]
 
 
 def generate_explanation(
@@ -57,13 +68,12 @@ def generate_explanation(
         for p in retrieved_passages
     ])
 
-    # Build risk factors summary
-    risk_summary = "\n".join([
-        f"- {f['label']} (CFPB Code: {f['cfpb_code']}, "
-        f"SHAP impact: {f['shap_value']:.4f})"
-        for f in shap_factors
-        if is_citable_reason(f)
-    ]) or "- No specific factor met the citation standard; refer to overall credit risk."
+    # The reasons are decided by the model, not by the LLM: only factors that
+    # raise risk and have an honest reason-code mapping, deduplicated by code.
+    reasons = principal_reasons(shap_factors)
+    reason_lines = "\n".join(f"- {r}" for r in reasons) or (
+        "- No specific factor met the citation standard; refer to overall credit risk."
+    )
 
     user_prompt = f"""
 REGULATORY CONTEXT (use only this text for citations):
@@ -71,21 +81,17 @@ REGULATORY CONTEXT (use only this text for citations):
 
 CREDIT DECISION:
 - Decision: {decision.upper()}
-- Risk Score: {risk_score:.2f} out of 1.0
-- Model-identified risk factors:
-{risk_summary}
+- Principal reasons (state exactly these, add no others):
+{reason_lines}
 
 Write a structured adverse action notice. Return a JSON object with:
 {{
     "adverse_action_notice": "Full formal adverse action notice text (3-5 sentences)",
     "primary_reasons": ["reason 1", "reason 2", "reason 3"],
     "regulatory_basis": "Specific regulation section cited from the context above",
-    "applicant_rights": "One sentence describing applicant's right to obtain credit report",
-    "grounding_score": 0.0
+    "applicant_rights": "One sentence describing applicant's right to obtain credit report"
 }}
 
-The grounding_score (0.0 to 1.0) should reflect how well your response
-is grounded in the provided regulatory context.
 Return ONLY the JSON object, no other text.
 """
 
@@ -100,6 +106,7 @@ Return ONLY the JSON object, no other text.
                 {"role": "system", "content": SYSTEM_PROMPT},
                 {"role": "user", "content": user_prompt},
             ],
+            response_format={"type": "json_object"},
         )
 
         elapsed_ms = int((time.time() - start_time) * 1000)
@@ -117,13 +124,24 @@ Return ONLY the JSON object, no other text.
             else:
                 raise ValueError(f"Could not parse JSON from response: {raw_response}")
 
+        # Verified in code, never taken from the LLM
+        result["primary_reasons"] = reasons
+        generated = " ".join(
+            str(result.get(k) or "") for k in ("adverse_action_notice", "regulatory_basis")
+        )
+        check = check_citations(generated, retrieved_passages)
+        result["citation_check"] = check
+        result["grounding_score"] = check["grounding_score"]
+        if check["unsupported"]:
+            logger.warning(f"Citations not found in retrieved passages: {check['unsupported']}")
+
         result["generation_time_ms"] = elapsed_ms
         result["model"] = settings.openai_model
         result["retrieved_passages"] = len(retrieved_passages)
 
         logger.info(
             f"Generated explanation in {elapsed_ms}ms | "
-            f"Grounding: {result.get('grounding_score', 0):.2f}"
+            f"Citations verified: {len(check['supported'])}/{len(check['cited'])}"
         )
 
         return result
