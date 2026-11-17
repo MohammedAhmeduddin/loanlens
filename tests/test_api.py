@@ -10,7 +10,7 @@ os.environ["TOKENIZERS_PARALLELISM"] = "false"
 os.environ["OMP_NUM_THREADS"] = "1"
 
 from fastapi.testclient import TestClient
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock
 import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
@@ -94,6 +94,7 @@ VALID_REQUEST = {
     "bureau_overdue_count": 0,
     "prev_refused_count": 0,
     "late_payment_rate": 0.05,
+    "instalment_count": 20,
 }
 
 HIGH_RISK_REQUEST = {
@@ -105,8 +106,11 @@ HIGH_RISK_REQUEST = {
     "employment_years": 0.3,
     "ext_source_2": 0.10,
     "bureau_overdue_count": 5,
+    "bureau_loan_count": 6,
     "prev_refused_count": 4,
+    "prev_app_count": 5,
     "late_payment_rate": 0.8,
+    "instalment_count": 30,
 }
 
 

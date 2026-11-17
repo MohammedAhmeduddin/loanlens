@@ -3,7 +3,7 @@ Pydantic request/response schemas for LoanLens API.
 Strict typing on all inputs and outputs.
 """
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, Field, field_validator, model_validator
 from typing import Optional
 from enum import Enum
 
@@ -72,18 +72,42 @@ class ScoreRequest(BaseModel):
     bureau_max_overdue_days: int = Field(0, ge=0)
     bureau_total_debt: float = Field(0.0, ge=0)
     bureau_debt_to_credit: float = Field(0.0, ge=0, le=1)
-    has_bureau_history: int = Field(0, ge=0, le=1)
+    has_bureau_history: Optional[int] = Field(None, ge=0, le=1, description="Derived from bureau_loan_count if omitted")
 
     # Previous application features
     prev_app_count: int = Field(0, ge=0)
     prev_refused_count: int = Field(0, ge=0)
     prev_approval_rate: float = Field(0.0, ge=0, le=1)
-    has_prev_application: int = Field(0, ge=0, le=1)
+    has_prev_application: Optional[int] = Field(None, ge=0, le=1, description="Derived from prev_app_count if omitted")
 
     # Installment features
     late_payment_rate: float = Field(0.0, ge=0, le=1)
     avg_payment_ratio: Optional[float] = None
-    has_instalment_history: int = Field(0, ge=0, le=1)
+    instalment_count: int = Field(0, ge=0, description="Past instalments on record")
+    has_instalment_history: Optional[int] = Field(None, ge=0, le=1, description="Derived from instalment_count if omitted")
+
+    @model_validator(mode="after")
+    def history_is_consistent(self):
+        """Reject inputs no real record could produce (the model would be
+        scoring a combination it never saw in training)."""
+        problems = []
+        if self.bureau_overdue_count > self.bureau_loan_count:
+            problems.append("bureau_overdue_count cannot exceed bureau_loan_count")
+        if self.bureau_active_loans > self.bureau_loan_count:
+            problems.append("bureau_active_loans cannot exceed bureau_loan_count")
+        if self.prev_refused_count > self.prev_app_count:
+            problems.append("prev_refused_count cannot exceed prev_app_count")
+        if self.late_payment_rate > 0 and self.instalment_count == 0:
+            problems.append("late_payment_rate > 0 requires instalment_count > 0")
+        if self.has_bureau_history == 0 and self.bureau_loan_count > 0:
+            problems.append("has_bureau_history=0 contradicts bureau_loan_count > 0")
+        if self.has_prev_application == 0 and self.prev_app_count > 0:
+            problems.append("has_prev_application=0 contradicts prev_app_count > 0")
+        if self.has_instalment_history == 0 and self.instalment_count > 0:
+            problems.append("has_instalment_history=0 contradicts instalment_count > 0")
+        if problems:
+            raise ValueError("; ".join(problems))
+        return self
 
     @field_validator("debt_to_income", mode="before")
     @classmethod

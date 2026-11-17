@@ -20,9 +20,22 @@ SAMPLES: dict[str, tuple] = {
 }
 
 
+# The form has sliders for overdue accounts, refused applications and the
+# late-payment rate, but not for how many records those come from. The demo
+# assumes this credit history; it is shown on the page.
+DEMO_HISTORY = {"bureau_loan_count": 5, "prev_app_count": 3, "instalment_count": 24}
+HISTORY_NOTE = (
+    "Assumed history for every form input: 5 credit bureau loans, "
+    "3 previous applications, 24 past instalments."
+)
+
+
 def build_payload(income, loan, annuity, emp, ext, overdue, refused, late, debt) -> dict:
-    """Dashboard inputs -> API request body."""
+    """Dashboard inputs -> API request body (a consistent credit history)."""
     return {
+        "bureau_loan_count": max(DEMO_HISTORY["bureau_loan_count"], int(overdue)),
+        "prev_app_count": max(DEMO_HISTORY["prev_app_count"], int(refused)),
+        "instalment_count": DEMO_HISTORY["instalment_count"],
         "amt_income_total": income,
         "amt_credit": loan,
         "amt_annuity": annuity,
