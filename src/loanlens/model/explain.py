@@ -17,8 +17,10 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 from loanlens.config import get_settings
 
 
-# Maps internal feature names to business language
-# and CFPB adverse action reason codes
+# Maps internal feature names to business language and CFPB adverse action
+# reason codes. Only features listed here can be cited as a reason for denial:
+# under Regulation B the stated reasons must be the specific, actual reasons,
+# so a feature without an honest mapping is never put on a notice.
 FEATURE_TO_REGULATORY = {
     "ext_source_mean": {
         "label": "External credit score assessment",
@@ -95,21 +97,6 @@ FEATURE_TO_REGULATORY = {
         "cfpb_code": "A5 - Insufficient income",
         "regulation": "ECOA"
     },
-    "age_years": {
-        "label": "Insufficient length of credit history",
-        "cfpb_code": "A8 - Length of credit history",
-        "regulation": "FCRA"
-    },
-    "name_education_type": {
-        "label": "Creditworthiness assessment based on financial profile",
-        "cfpb_code": "A9 - Credit score",
-        "regulation": "ECOA"
-    },
-    "organization_type": {
-        "label": "Employment stability and income reliability",
-        "cfpb_code": "A13 - Length of employment",
-        "regulation": "ECOA"
-    },
     "prev_max_credit": {
         "label": "Previous credit utilization patterns",
         "cfpb_code": "A3 - Too many accounts or too much credit",
@@ -126,6 +113,14 @@ FEATURE_TO_REGULATORY = {
         "regulation": "FCRA"
     },
 }
+
+
+UNMAPPED_LABEL = "Other model factor (not a citable reason)"
+
+
+def is_citable_reason(factor: dict) -> bool:
+    """A factor can appear on a notice only if it raises risk and has a mapping."""
+    return factor["direction"] == "increases_risk" and factor.get("cfpb_code") is not None
 
 
 class CreditExplainer:
@@ -179,22 +174,19 @@ class CreditExplainer:
             shap_val = float(sv[idx])
             feature_val = float(X.iloc[0, idx]) if not pd.isna(X.iloc[0, idx]) else None
 
-            # Get regulatory mapping
-            reg_info = FEATURE_TO_REGULATORY.get(feature, {
-                "label": feature.replace("_", " ").title(),
-                "cfpb_code": "General creditworthiness",
-                "regulation": "ECOA"
-            })
+            # Model output is probability of DEFAULT, so a positive SHAP
+            # value pushes the applicant toward default (more risk).
+            reg_info = FEATURE_TO_REGULATORY.get(feature)
 
             factors.append({
                 "rank": rank + 1,
                 "feature": feature,
                 "feature_value": feature_val,
                 "shap_value": shap_val,
-                "direction": "increases_risk" if shap_val < 0 else "decreases_risk",
-                "label": reg_info["label"],
-                "cfpb_code": reg_info["cfpb_code"],
-                "regulation": reg_info["regulation"],
+                "direction": "increases_risk" if shap_val > 0 else "decreases_risk",
+                "label": reg_info["label"] if reg_info else UNMAPPED_LABEL,
+                "cfpb_code": reg_info["cfpb_code"] if reg_info else None,
+                "regulation": reg_info["regulation"] if reg_info else None,
             })
 
         return factors
@@ -210,14 +202,10 @@ class CreditExplainer:
         Returns:
             Query string for ChromaDB retrieval
         """
-        risk_factors = [
-            f["label"]
-            for f in factors
-            if f["direction"] == "increases_risk"
-        ]
+        risk_factors = [f["label"] for f in factors if is_citable_reason(f)]
 
         if not risk_factors:
-            risk_factors = [factors[0]["label"]]
+            risk_factors = ["overall credit risk assessment"]
 
         query = (
             f"Adverse action notice requirements under ECOA Regulation B "
@@ -241,7 +229,7 @@ class CreditExplainer:
         """
         codes = []
         for f in factors:
-            if f["direction"] == "increases_risk":
+            if is_citable_reason(f):
                 codes.append(f["cfpb_code"])
 
         # Deduplicate preserving order
@@ -274,3 +262,34 @@ def load_production_model():
     except Exception as e:
         logger.error(f"Failed to load model from registry: {e}")
         raise
+
+
+def load_preprocessing_artifacts() -> tuple[list[str], dict[str, list[str]]]:
+    """
+    Load the feature order and categorical vocabularies saved by train.py
+    for the same model version that load_production_model() serves.
+
+    Raises if the model predates these artifacts: such a model was trained
+    with prohibited-basis features and per-run encodings, and must be retrained.
+    """
+    from mlflow.tracking import MlflowClient
+
+    settings = get_settings()
+    mlflow.set_tracking_uri(settings.mlflow_tracking_uri)
+    client = MlflowClient()
+    versions = client.search_model_versions(f"name='{settings.mlflow_model_name}'")
+    if not versions:
+        raise RuntimeError(f"No versions registered for {settings.mlflow_model_name}")
+    latest = max(versions, key=lambda v: int(v.version))
+
+    feature_names = mlflow.artifacts.load_dict(
+        f"runs:/{latest.run_id}/preprocessing/feature_names.json"
+    )
+    category_maps = mlflow.artifacts.load_dict(
+        f"runs:/{latest.run_id}/preprocessing/category_maps.json"
+    )
+    logger.info(
+        f"Loaded preprocessing for version {latest.version}: "
+        f"{len(feature_names)} features, {len(category_maps)} categorical vocabularies"
+    )
+    return feature_names, category_maps

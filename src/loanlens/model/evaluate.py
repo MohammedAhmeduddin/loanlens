@@ -4,9 +4,7 @@ Computes AUC, KS statistic, and Gini coefficient.
 """
 
 import numpy as np
-import pandas as pd
-from sklearn.metrics import roc_auc_score, roc_curve
-from loguru import logger
+from sklearn.metrics import brier_score_loss, roc_auc_score, roc_curve
 
 
 def ks_statistic(y_true: np.ndarray, y_prob: np.ndarray) -> float:
@@ -53,6 +51,10 @@ def compute_metrics(model, X, y, prefix: str = "") -> dict:
         f"{p}auc":  round(auc,  4),
         f"{p}ks":   round(ks,   4),
         f"{p}gini": round(gini, 4),
+        # Calibration: is the score a real probability of default?
+        f"{p}brier": round(float(brier_score_loss(y, y_prob)), 4),
+        f"{p}mean_predicted": round(float(np.mean(y_prob)), 4),
+        f"{p}actual_default_rate": round(float(np.mean(y)), 4),
     }
 
     return metrics

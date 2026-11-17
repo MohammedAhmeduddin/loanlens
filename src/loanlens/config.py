@@ -65,9 +65,13 @@ class Settings(BaseSettings):
     mlflow_experiment_name: str = "credit_scoring"
     mlflow_model_name: str = "CreditScoringModel"
 
-    # Model thresholds
-    decline_threshold: float = 0.5
-    review_threshold: float = 0.35
+    # Decision cutoffs on the calibrated probability of default.
+    # Chosen from the cutoff table logged by train.py (test set, model v3):
+    # review at 0.20 -> 91% auto-approved, 6.1% default rate among approved,
+    # 30% of defaulters routed away from auto-approval; age-band impact ratio
+    # 0.80 (borderline), so those cases go to human review rather than decline.
+    review_threshold: float = 0.20
+    decline_threshold: float = 0.35
 
     # Monitoring
     psi_moderate_threshold: float = 0.10

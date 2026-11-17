@@ -4,6 +4,7 @@ OpenAI and MLflow calls are mocked — no real API costs in tests.
 """
 
 import pytest
+import numpy as np
 import os
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 os.environ["OMP_NUM_THREADS"] = "1"
@@ -37,7 +38,7 @@ def mock_pipeline():
                 "rank": 1,
                 "feature": "ext_source_mean",
                 "feature_value": 0.25,
-                "shap_value": -0.45,
+                "shap_value": 0.45,
                 "direction": "increases_risk",
                 "label": "External credit score assessment",
                 "cfpb_code": "A9 - Credit score",
@@ -63,6 +64,11 @@ def mock_pipeline():
     }
 
     pipeline.retriever.collection.count.return_value = 9977
+    pipeline.feature_names = [
+        "amt_income_total", "amt_credit", "ext_source_2", "ext_source_mean",
+        "debt_to_income", "name_housing_type", "bureau_total_debt",
+    ]
+    pipeline.category_maps = {"name_housing_type": ["House / apartment", "Rented apartment"]}
     return pipeline
 
 
@@ -234,10 +240,10 @@ class TestExplain:
 # ── Schema Validation Tests ────────────────────────────────────
 
 class TestSchemas:
-    def test_age_below_18_rejected(self, client):
-        bad = {**VALID_REQUEST, "age_years": 16}
-        response = client.post("/score", json=bad)
-        assert response.status_code == 422
+    def test_prohibited_basis_fields_are_not_accepted(self):
+        from loanlens.api.schemas import ScoreRequest
+        for field in ["age_years", "code_gender", "name_family_status", "employed_to_age_ratio"]:
+            assert field not in ScoreRequest.model_fields
 
     def test_late_payment_rate_above_1_rejected(self, client):
         bad = {**VALID_REQUEST, "late_payment_rate": 1.5}
@@ -248,3 +254,62 @@ class TestSchemas:
         bad = {**VALID_REQUEST, "ext_source_2": 1.5}
         response = client.post("/score", json=bad)
         assert response.status_code == 422
+
+
+# ── Feature row construction ───────────────────────────────────
+
+class TestRequestToDataframe:
+    FEATURES = ["amt_income_total", "amt_credit", "ext_source_1", "ext_source_mean",
+                "debt_to_income", "name_housing_type", "bureau_total_debt"]
+    MAPS = {"name_housing_type": ["House / apartment", "Rented apartment"]}
+
+    def _row(self, **overrides):
+        from loanlens.api.main import request_to_dataframe
+        from loanlens.api.schemas import ScoreRequest
+        body = {"amt_income_total": 50000, "amt_credit": 100000, **overrides}
+        return request_to_dataframe(ScoreRequest(**body), self.FEATURES, self.MAPS)
+
+    def test_columns_match_trained_model(self):
+        assert list(self._row().columns) == self.FEATURES
+
+    def test_missing_values_are_nan_not_zero(self):
+        row = self._row()
+        assert np.isnan(row["ext_source_1"].iloc[0])
+        assert np.isnan(row["ext_source_mean"].iloc[0])
+
+    def test_categorical_uses_saved_vocabulary(self):
+        assert self._row(name_housing_type="Rented apartment")["name_housing_type"].iloc[0] == 1.0
+        assert self._row(name_housing_type="House / apartment")["name_housing_type"].iloc[0] == 0.0
+
+    def test_unknown_category_is_missing(self):
+        assert np.isnan(self._row(name_housing_type="Castle")["name_housing_type"].iloc[0])
+
+    def test_encoding_is_stable_across_processes(self):
+        import subprocess, sys as _sys
+        code = (
+            "import sys; sys.path.insert(0, 'src');"
+            "from loanlens.api.main import request_to_dataframe;"
+            "from loanlens.api.schemas import ScoreRequest;"
+            "r = ScoreRequest(amt_income_total=1, amt_credit=1, name_housing_type='Rented apartment');"
+            "print(request_to_dataframe(r, ['name_housing_type'],"
+            " {'name_housing_type': ['House / apartment', 'Rented apartment']}).iloc[0, 0])"
+        )
+        root = Path(__file__).parent.parent
+        outs = {
+            subprocess.run([_sys.executable, "-c", code], capture_output=True, text=True,
+                           cwd=root, env={**os.environ, "PYTHONHASHSEED": seed}).stdout.strip()
+            for seed in ("1", "2", "3")
+        }
+        assert outs == {"1.0"}
+
+
+class TestErrorsDoNotLeak:
+    def test_score_error_hides_internal_message(self, client, mock_pipeline):
+        mock_pipeline.score.side_effect = RuntimeError("postgres://user:secret@db")
+        try:
+            response = client.post("/score", json=VALID_REQUEST)
+        finally:
+            mock_pipeline.score.side_effect = None
+        assert response.status_code == 500
+        assert "secret" not in response.text
+        assert response.json()["detail"] == "Scoring failed"

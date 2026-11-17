@@ -12,13 +12,13 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 from loguru import logger
 import pandas as pd
-import numpy as np
 
 import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 
 from loanlens.config import get_settings
+from loanlens.model.features import encode_categoricals
 from loanlens.api.schemas import (
     ScoreRequest, ScoreResponse,
     ExplainRequest, ExplainResponse,
@@ -66,35 +66,23 @@ app.add_middleware(
 )
 
 
-def request_to_dataframe(request: ScoreRequest) -> pd.DataFrame:
-    """Convert API request to feature DataFrame."""
+def request_to_dataframe(
+    request: ScoreRequest,
+    feature_names: list[str],
+    category_maps: dict[str, list[str]],
+) -> pd.DataFrame:
+    """Convert an API request into the exact feature row the model was trained on.
+
+    - Column order and set come from the trained model (feature_names).
+    - Categoricals use the vocabulary saved at training time.
+    - Anything the request does not provide is NaN (missing), as in training,
+      not 0, which would claim e.g. a worst-possible external score.
+    """
     data = request.model_dump()
 
-    # Convert bool to int
     if isinstance(data.get("is_unemployed"), bool):
         data["is_unemployed"] = int(data["is_unemployed"])
 
-    # Encode categoricals the same way as training
-    categorical_map = {
-        "name_contract_type": None,
-        "name_family_status": None,
-        "name_education_type": None,
-        "name_income_type": None,
-        "name_housing_type": None,
-        "code_gender": None,
-        "flag_own_car": None,
-        "flag_own_realty": None,
-        "occupation_type": None,
-        "organization_type": None,
-    }
-
-    for col in categorical_map:
-        if data.get(col) is not None:
-            data[col] = hash(data[col]) % 100
-        else:
-            data[col] = -1
-
-    # Fill computed fields
     if data.get("debt_to_income") is None and data["amt_income_total"] > 0:
         data["debt_to_income"] = round(data["amt_credit"] / data["amt_income_total"], 4)
 
@@ -103,41 +91,10 @@ def request_to_dataframe(request: ScoreRequest) -> pd.DataFrame:
         valid = [s for s in sources if s is not None]
         data["ext_source_mean"] = round(sum(valid) / len(valid), 6) if valid else None
 
-    # All 75 features the model was trained on
-    ALL_FEATURES = [
-        'name_contract_type','amt_credit','amt_annuity','amt_income_total',
-        'amt_goods_price','age_years','cnt_children','cnt_fam_members',
-        'name_family_status','name_education_type','name_income_type',
-        'name_housing_type','code_gender','employment_years','is_unemployed',
-        'occupation_type','organization_type','ext_source_1','ext_source_2',
-        'ext_source_3','ext_source_mean','debt_to_income','credit_to_annuity',
-        'income_per_person','employed_to_age_ratio','flag_own_car','flag_own_realty',
-        'flag_work_phone','flag_email','region_rating_client',
-        'region_rating_client_w_city','reg_city_not_live_city','reg_city_not_work_city',
-        'amt_req_credit_bureau_hour','amt_req_credit_bureau_day',
-        'amt_req_credit_bureau_week','amt_req_credit_bureau_mon',
-        'amt_req_credit_bureau_qrt','amt_req_credit_bureau_year',
-        'bureau_loan_count','bureau_active_loans','bureau_closed_loans',
-        'bureau_overdue_count','bureau_max_overdue_days','bureau_avg_overdue_days',
-        'bureau_total_credit','bureau_total_debt','bureau_total_overdue_amt',
-        'bureau_debt_to_credit','bureau_oldest_credit_days','bureau_newest_credit_days',
-        'bureau_credit_type_count','bureau_total_prolongations','has_bureau_history',
-        'prev_app_count','prev_approved_count','prev_refused_count','prev_canceled_count',
-        'prev_approval_rate','prev_avg_application_amt','prev_max_credit','prev_avg_credit',
-        'prev_last_decision_days','prev_first_decision_days','has_prev_application',
-        'instalment_count','avg_payment_ratio','late_payment_count','late_payment_rate',
-        'avg_payment_deficit','avg_days_late','has_instalment_history',
-        'total_debt_burden','total_credit_applications','total_delinquency_count'
-    ]
-
-    # Fill missing features with 0, keep existing values
-    for feat in ALL_FEATURES:
-        if feat not in data or data[feat] is None:
-            data[feat] = 0
-
-    # Return in exact training order
-    row = {feat: data.get(feat, 0) for feat in ALL_FEATURES}
-    return pd.DataFrame([row])
+    row = {feat: data.get(feat) for feat in feature_names}
+    X = pd.DataFrame([row], columns=feature_names)
+    X = encode_categoricals(X, category_maps)
+    return X.apply(pd.to_numeric, errors="coerce").astype(float)
 
 
 @app.get("/health", response_model=HealthResponse)
@@ -170,7 +127,7 @@ async def score(request: ScoreRequest):
         raise HTTPException(status_code=503, detail="Model not loaded")
 
     try:
-        X = request_to_dataframe(request)
+        X = request_to_dataframe(request, _pipeline.feature_names, _pipeline.category_maps)
         result = _pipeline.score(X)
 
         return ScoreResponse(
@@ -179,8 +136,8 @@ async def score(request: ScoreRequest):
             decision=result["decision"],
         )
     except Exception as e:
-        logger.error(f"Scoring error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception(f"Scoring error: {e}")
+        raise HTTPException(status_code=500, detail="Scoring failed")
 
 
 @app.post("/explain", response_model=ExplainResponse)
@@ -193,7 +150,7 @@ async def explain(request: ExplainRequest):
         raise HTTPException(status_code=503, detail="Model not loaded")
 
     try:
-        X = request_to_dataframe(request)
+        X = request_to_dataframe(request, _pipeline.feature_names, _pipeline.category_maps)
         result = _pipeline.explain(X)
 
         return ExplainResponse(
@@ -213,8 +170,8 @@ async def explain(request: ExplainRequest):
             generation_time_ms=result.get("generation_time_ms", 0),
         )
     except Exception as e:
-        logger.error(f"Explanation error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception(f"Explanation error: {e}")
+        raise HTTPException(status_code=500, detail="Explanation failed")
 
 
 @app.get("/model/info")
@@ -228,4 +185,5 @@ async def model_info():
         info = get_production_model_info()
         return info
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.exception(f"Model info error: {e}")
+        raise HTTPException(status_code=500, detail="Model info unavailable")

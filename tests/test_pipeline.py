@@ -16,7 +16,9 @@ class TestLoanLensPipeline:
     def mock_pipeline(self):
         with patch("loanlens.rag.pipeline.load_production_model") as mock_model, \
              patch("loanlens.rag.pipeline.CreditExplainer") as mock_explainer, \
-             patch("loanlens.rag.pipeline.RegulatoryRetriever") as mock_retriever:
+             patch("loanlens.rag.pipeline.RegulatoryRetriever") as mock_retriever, \
+             patch("loanlens.rag.pipeline.load_preprocessing_artifacts",
+                   return_value=(["ext_source_mean"], {})):
 
             mock_model.return_value = MagicMock()
             mock_explainer.return_value = MagicMock()
@@ -48,10 +50,16 @@ class TestLoanLensPipeline:
         assert result["decision"] == "approve"
 
     def test_score_review(self, mock_pipeline):
-        mock_pipeline.model.predict_proba.return_value = np.array([[0.65, 0.35]])
+        mock_pipeline.model.predict_proba.return_value = np.array([[0.75, 0.25]])
         X = pd.DataFrame({"feature": [1.0]})
         result = mock_pipeline.score(X)
         assert result["decision"] == "review"
+
+    def test_cutoff_boundaries(self, mock_pipeline):
+        cases = [(0.199, "approve"), (0.20, "review"), (0.349, "review"), (0.35, "decline")]
+        for prob, expected in cases:
+            mock_pipeline.model.predict_proba.return_value = np.array([[1 - prob, prob]])
+            assert mock_pipeline.score(pd.DataFrame({"feature": [1.0]}))["decision"] == expected
 
     def test_score_returns_required_keys(self, mock_pipeline):
         mock_pipeline.model.predict_proba.return_value = np.array([[0.3, 0.7]])
@@ -66,7 +74,7 @@ class TestLoanLensPipeline:
         mock_pipeline.model.predict_proba.return_value = np.array([[0.2, 0.8]])
         mock_pipeline.explainer.get_shap_factors.return_value = [
             {"rank": 1, "feature": "ext_source_mean", "feature_value": 0.2,
-             "shap_value": -0.5, "direction": "increases_risk",
+             "shap_value": 0.5, "direction": "increases_risk",
              "label": "Credit score", "cfpb_code": "A9", "regulation": "FCRA"}
         ]
         mock_pipeline.explainer.build_rag_query.return_value = "query"
@@ -94,7 +102,7 @@ class TestLoanLensPipeline:
         mock_pipeline.model.predict_proba.return_value = np.array([[0.9, 0.1]])
         mock_pipeline.explainer.get_shap_factors.return_value = [
             {"rank": 1, "feature": "ext_source_mean", "feature_value": 0.8,
-             "shap_value": 0.5, "direction": "decreases_risk",
+             "shap_value": -0.5, "direction": "decreases_risk",
              "label": "Credit score", "cfpb_code": "A9", "regulation": "FCRA"}
         ]
         mock_pipeline.explainer.build_rag_query.return_value = "query"
@@ -197,3 +205,15 @@ class TestLogging:
     def test_logger_is_importable(self):
         from loanlens.utils.logging import logger
         assert logger is not None
+
+
+class TestPipelineRefusesProhibitedModel:
+    def test_model_trained_on_prohibited_features_is_rejected(self):
+        with patch("loanlens.rag.pipeline.load_production_model"), \
+             patch("loanlens.rag.pipeline.CreditExplainer"), \
+             patch("loanlens.rag.pipeline.RegulatoryRetriever"), \
+             patch("loanlens.rag.pipeline.load_preprocessing_artifacts",
+                   return_value=(["ext_source_mean", "code_gender"], {})):
+            from loanlens.rag.pipeline import LoanLensPipeline
+            with pytest.raises(ValueError, match="prohibited"):
+                LoanLensPipeline()
