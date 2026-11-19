@@ -55,7 +55,7 @@ is not usable for lending.
 ## Table of Contents
 
 - [Key Results](#key-results)
-- [Highlights](#highlights)
+- [Highlights & Impact](#highlights--impact)
 - [System Architecture](#system-architecture)
 - [How It Works](#how-it-works)
   - [1. Data Pipeline](#1-data-pipeline)
@@ -99,19 +99,47 @@ All figures are from model **v4** on a held-out, stratified test set of **46,127
 
 ---
 
-## Highlights
+## Highlights & Impact
 
-- **No prohibited-basis inputs.** Sex, marital status, age and an age-derived ratio are removed before training. The
-  API rejects them, and the service refuses to load any model that uses them. Removing them cost **−0.004 AUC**.
-- **Calibrated probabilities.** A score of 0.10 means roughly a 10% chance of default, so cutoffs mean what they say.
-- **Reasons decided by the model, not the LLM.** Only risk-increasing factors with an honest reason-code mapping are
-  cited, at most four.
-- **Verified citations.** `grounding_score` is computed by checking every cited regulation against the retrieved
-  passages; the LLM never grades itself.
-- **Training–serving parity enforced by tests.** The API builds features with the same rules as the dbt SQL, and a
-  test parses the SQL to catch drift between the two.
-- **Fairness audit on every run.** Approval rates, calibration and good-borrower rejection rates by sex and age band
-  are logged to MLflow with a cutoff trade-off table.
+Achievements, each measured on this project's own runs:
+
+**Machine learning and fairness**
+
+- **Built a calibrated credit-default model** with XGBoost on **307,511 loan applications** and **16M+ joined rows**,
+  reaching **0.770 test AUC** with predicted default (0.080) matching actual default (0.081).
+- **Removed sex, marital status and age from the model at a cost of only 0.004 AUC**, and enforced it at every layer:
+  training, API validation and model loading.
+- **Passed four-fifths fairness screening** by sex (impact ratio **0.948**) and age band (**0.803**), with a fairness
+  audit and cutoff trade-off table logged to MLflow on every training run.
+- **Cut applicants sent away from auto-approval from 46% to 8.7%** by replacing inflated scores (class weighting
+  inflated every score ~4.6×) with calibrated probabilities. Good borrowers under 25 not auto-approved fell from
+  **79% to 17.8%**.
+
+**Data engineering**
+
+- **Raised payment-history coverage from 23.5% to 94.8% of applicants** by loading all **13.6M installment rows**
+  instead of a 500K sample, lifting test AUC from 0.766 to 0.770.
+- **Made the full load take about 30 seconds** by switching to PostgreSQL `COPY` with streamed 200K-row chunks.
+- **Eliminated training–serving skew**: the API rebuilds all **71 model features** with the same rules as the dbt SQL,
+  enforced by a test that parses the SQL.
+
+**Explainability and GenAI**
+
+- **Fixed reversed adverse-action reasons**: an inverted SHAP sign had listed every declined applicant's strengths as
+  the reasons for denial.
+- **Built RAG over 9,977 CFPB regulation chunks** (ChromaDB, sentence-transformers) to draft adverse-action notices
+  with OpenAI `gpt-6-luna`.
+- **Replaced LLM self-grading with code verification**: every cited regulation is checked against retrieved passages,
+  and the notice must state exactly the model's 1–4 principal reasons.
+- **Kept declines working through LLM outages**: the decision, reason codes and reasons are always returned, and the
+  notice is marked for human review.
+
+**Engineering quality**
+
+- **Audited the system end to end and fixed 12 defects**, documented in the [Engineering Log](#engineering-log).
+- **Merged 10 pull requests**, each behind green CI.
+- **Raised the test suite from 96 to 203 tests** at **90% coverage**, with ruff lint and an 85% coverage gate in
+  GitHub Actions.
 
 ---
 
