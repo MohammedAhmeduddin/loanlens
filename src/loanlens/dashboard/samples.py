@@ -183,8 +183,13 @@ def format_result(result: dict, footer: str = "") -> tuple[str, str, str, str, s
 
     shap_text = "\n\n".join(format_factor(f) for f in result.get("shap_factors", [])) or "N/A"
 
-    if decision == "decline":
+    if decision == "decline" and result.get("notice_status") == "unavailable":
+        notice = ("⚠️ The notice could not be drafted (the language model is unavailable). "
+                  "The decision and reason codes above still stand; a reviewer must issue the notice.")
+    elif decision == "decline":
         notice = result.get("adverse_action_notice") or "N/A"
+        if result.get("notice_status") == "needs_review":
+            notice = "⚠️ Needs compliance review before sending.\n\n" + notice
     elif decision == "review":
         notice = "No adverse action notice: the application goes to a human underwriter."
     else:

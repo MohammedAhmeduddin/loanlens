@@ -8,6 +8,8 @@ from typing import Optional
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+DAYS_BEFORE = "Days before the application (negative)"
+
 
 class Decision(str, Enum):
     APPROVE = "approve"
@@ -23,22 +25,22 @@ class ScoreRequest(BaseModel):
     Matches columns in staging_features.feat_master.
     """
     # Core financials
-    amt_income_total: float = Field(..., gt=0, description="Annual income in currency units")
-    amt_credit: float = Field(..., gt=0, description="Loan amount requested")
-    amt_annuity: Optional[float] = Field(None, gt=0, description="Loan annuity amount")
-    amt_goods_price: Optional[float] = Field(None, gt=0)
+    amt_income_total: float = Field(..., gt=0, description="Annual income in currency units", le=2e8)
+    amt_credit: float = Field(..., gt=0, description="Loan amount requested", le=1e7)
+    amt_annuity: Optional[float] = Field(None, gt=0, description="Loan annuity amount", le=1e6)
+    amt_goods_price: Optional[float] = Field(None, gt=0, le=1e7)
 
     # Household (sex, marital status and age are prohibited bases under
     # ECOA / Regulation B and are deliberately not accepted)
     cnt_children: int = Field(0, ge=0, le=20)
-    cnt_fam_members: Optional[float] = Field(None, ge=1)
+    cnt_fam_members: Optional[float] = Field(None, ge=1, le=25)
     name_education_type: Optional[str] = None
     name_income_type: Optional[str] = None
     name_housing_type: Optional[str] = None
     name_contract_type: Optional[str] = None
 
     # Employment
-    employment_years: float = Field(0.0, ge=0)
+    employment_years: float = Field(0.0, ge=0, le=60)
     is_unemployed: bool = False
     occupation_type: Optional[str] = None
     organization_type: Optional[str] = None
@@ -50,9 +52,9 @@ class ScoreRequest(BaseModel):
     ext_source_mean: Optional[float] = Field(None, ge=0, le=1)
 
     # Derived ratios
-    debt_to_income: Optional[float] = None
-    credit_to_annuity: Optional[float] = None
-    income_per_person: Optional[float] = None
+    debt_to_income: Optional[float] = Field(None, ge=0, le=1000)
+    credit_to_annuity: Optional[float] = Field(None, ge=0, le=1000)
+    income_per_person: Optional[float] = Field(None, ge=0, le=2e8)
 
     # Flags
     flag_own_car: Optional[str] = None
@@ -67,51 +69,50 @@ class ScoreRequest(BaseModel):
     reg_city_not_work_city: Optional[int] = Field(None, ge=0, le=1)
 
     # Credit bureau inquiries before the application
-    amt_req_credit_bureau_hour: Optional[int] = Field(None, ge=0)
-    amt_req_credit_bureau_day: Optional[int] = Field(None, ge=0)
-    amt_req_credit_bureau_week: Optional[int] = Field(None, ge=0)
-    amt_req_credit_bureau_mon: Optional[int] = Field(None, ge=0)
-    amt_req_credit_bureau_qrt: Optional[int] = Field(None, ge=0)
-    amt_req_credit_bureau_year: Optional[int] = Field(None, ge=0)
+    amt_req_credit_bureau_hour: Optional[int] = Field(None, ge=0, le=500)
+    amt_req_credit_bureau_day: Optional[int] = Field(None, ge=0, le=500)
+    amt_req_credit_bureau_week: Optional[int] = Field(None, ge=0, le=500)
+    amt_req_credit_bureau_mon: Optional[int] = Field(None, ge=0, le=500)
+    amt_req_credit_bureau_qrt: Optional[int] = Field(None, ge=0, le=500)
+    amt_req_credit_bureau_year: Optional[int] = Field(None, ge=0, le=500)
 
     # Bureau features
-    bureau_loan_count: int = Field(0, ge=0)
-    bureau_active_loans: int = Field(0, ge=0)
-    bureau_overdue_count: int = Field(0, ge=0)
-    bureau_max_overdue_days: int = Field(0, ge=0)
-    bureau_total_debt: float = Field(0.0, ge=0)
+    bureau_loan_count: int = Field(0, ge=0, le=500)
+    bureau_active_loans: int = Field(0, ge=0, le=500)
+    bureau_overdue_count: int = Field(0, ge=0, le=500)
+    bureau_max_overdue_days: int = Field(0, ge=0, le=50000)
+    bureau_total_debt: float = Field(0.0, ge=0, le=1e10)
     bureau_debt_to_credit: float = Field(0.0, ge=0, le=1)
-    bureau_closed_loans: Optional[int] = Field(None, ge=0)
-    bureau_oldest_credit_days: Optional[float] = Field(None, le=0, description="Days before application (negative)")
-    bureau_newest_credit_days: Optional[float] = Field(None, le=0, description="Days before application (negative)")
-    bureau_avg_overdue_days: Optional[float] = Field(None, ge=0)
-    bureau_total_credit: Optional[float] = Field(None, ge=0)
-    bureau_total_overdue_amt: Optional[float] = Field(None, ge=0)
-    bureau_credit_type_count: Optional[int] = Field(None, ge=0)
-    bureau_total_prolongations: Optional[int] = Field(None, ge=0)
+    bureau_closed_loans: Optional[int] = Field(None, ge=0, le=500)
+    bureau_oldest_credit_days: Optional[float] = Field(None, ge=-50000, le=0, description=DAYS_BEFORE)
+    bureau_newest_credit_days: Optional[float] = Field(None, ge=-50000, le=0, description=DAYS_BEFORE)
+    bureau_avg_overdue_days: Optional[float] = Field(None, ge=0, le=50000)
+    bureau_total_credit: Optional[float] = Field(None, ge=0, le=1e10)
+    bureau_total_overdue_amt: Optional[float] = Field(None, ge=0, le=1e10)
+    bureau_credit_type_count: Optional[int] = Field(None, ge=0, le=50)
+    bureau_total_prolongations: Optional[int] = Field(None, ge=0, le=500)
     has_bureau_history: Optional[int] = Field(None, ge=0, le=1, description="Derived from bureau_loan_count if omitted")
 
     # Previous application features
-    prev_app_count: int = Field(0, ge=0)
-    prev_refused_count: int = Field(0, ge=0)
+    prev_app_count: int = Field(0, ge=0, le=500)
+    prev_refused_count: int = Field(0, ge=0, le=500)
     prev_approval_rate: float = Field(0.0, ge=0, le=1)
-    prev_approved_count: Optional[int] = Field(None, ge=0)
-    prev_last_decision_days: Optional[float] = Field(None, le=0, description="Days before application (negative)")
-    prev_first_decision_days: Optional[float] = Field(None, le=0, description="Days before application (negative)")
-    prev_canceled_count: Optional[int] = Field(None, ge=0)
-    prev_avg_application_amt: Optional[float] = Field(None, ge=0)
-    prev_max_credit: Optional[float] = Field(None, ge=0)
-    prev_avg_credit: Optional[float] = Field(None, ge=0)
+    prev_approved_count: Optional[int] = Field(None, ge=0, le=500)
+    prev_last_decision_days: Optional[float] = Field(None, ge=-50000, le=0, description=DAYS_BEFORE)
+    prev_first_decision_days: Optional[float] = Field(None, ge=-50000, le=0, description=DAYS_BEFORE)
+    prev_canceled_count: Optional[int] = Field(None, ge=0, le=500)
+    prev_avg_application_amt: Optional[float] = Field(None, ge=0, le=1e8)
+    prev_max_credit: Optional[float] = Field(None, ge=0, le=1e8)
+    prev_avg_credit: Optional[float] = Field(None, ge=0, le=1e8)
     has_prev_application: Optional[int] = Field(None, ge=0, le=1, description="Derived from prev_app_count if omitted")
 
     # Installment features
     late_payment_rate: float = Field(0.0, ge=0, le=1)
-    avg_payment_ratio: Optional[float] = None
-    late_payment_count: Optional[int] = Field(None, ge=0)
-    avg_payment_ratio: Optional[float] = Field(None, ge=0)
-    avg_payment_deficit: Optional[float] = None
-    avg_days_late: Optional[float] = Field(None, ge=0)
-    instalment_count: int = Field(0, ge=0, description="Past instalments on record")
+    late_payment_count: Optional[int] = Field(None, ge=0, le=10000)
+    avg_payment_ratio: Optional[float] = Field(None, ge=0, le=100)
+    avg_payment_deficit: Optional[float] = Field(None, ge=-1e8, le=1e8)
+    avg_days_late: Optional[float] = Field(None, ge=0, le=10000)
+    instalment_count: int = Field(0, ge=0, description="Past instalments on record", le=10000)
     has_instalment_history: Optional[int] = Field(
         None, ge=0, le=1, description="Derived from instalment_count if omitted"
     )
@@ -135,6 +136,15 @@ class ScoreRequest(BaseModel):
             problems.append("has_prev_application=0 contradicts prev_app_count > 0")
         if self.has_instalment_history == 0 and self.instalment_count > 0:
             problems.append("has_instalment_history=0 contradicts instalment_count > 0")
+        if self.amt_annuity is not None and self.amt_annuity > self.amt_credit:
+            problems.append("amt_annuity (yearly payment) cannot exceed amt_credit (loan amount)")
+        if self.late_payment_count is not None and self.late_payment_count > self.instalment_count:
+            problems.append("late_payment_count cannot exceed instalment_count")
+        if self.bureau_closed_loans is not None and self.bureau_closed_loans > self.bureau_loan_count:
+            problems.append("bureau_closed_loans cannot exceed bureau_loan_count")
+        oldest, newest = self.bureau_oldest_credit_days, self.bureau_newest_credit_days
+        if oldest is not None and newest is not None and oldest > newest:
+            problems.append("bureau_oldest_credit_days must be earlier (more negative) than bureau_newest_credit_days")
         if problems:
             raise ValueError("; ".join(problems))
         return self
@@ -224,6 +234,9 @@ class ExplainResponse(BaseModel):
     applicant_rights: Optional[str]
     grounding_score: Optional[float]
     citation_check: Optional[dict] = None
+    reasons_check: Optional[dict] = None
+    # drafted | needs_review | unavailable (LLM failed) | not_required (approve/review)
+    notice_status: str = "not_required"
     generation_time_ms: int
 
     # Demo mode flag

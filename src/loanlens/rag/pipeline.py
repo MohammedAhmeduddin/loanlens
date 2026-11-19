@@ -23,7 +23,7 @@ from loanlens.model.explain import (
     load_production_model,
 )
 from loanlens.model.features import assert_no_prohibited
-from loanlens.rag.generator import generate_explanation
+from loanlens.rag.generator import generate_explanation, principal_reasons
 from loanlens.rag.retriever import RegulatoryRetriever
 
 
@@ -111,6 +111,8 @@ class LoanLensPipeline:
             "applicant_rights": None,
             "grounding_score": None,
             "citation_check": None,
+            "reasons_check": None,
+            "notice_status": "not_required",
             "generation_time_ms": 0,
         }
         if score_result["decision"] == "decline":
@@ -118,12 +120,22 @@ class LoanLensPipeline:
             rag_query = self.explainer.build_rag_query(shap_factors)
             passages = self.retriever.retrieve_for_explanation(rag_query)
             logger.info(f"Retrieved {len(passages)} regulatory passages")
-            explanation = generate_explanation(
-                shap_factors=shap_factors,
-                retrieved_passages=passages,
-                risk_score=score_result["probability"],
-                decision=score_result["decision"],
-            )
+            try:
+                explanation = generate_explanation(
+                    shap_factors=shap_factors,
+                    retrieved_passages=passages,
+                    risk_score=score_result["probability"],
+                    decision=score_result["decision"],
+                )
+            except Exception as e:
+                # The decision and its reasons come from the model, not the LLM, so an
+                # LLM outage must not lose them. The notice is left for a human to issue.
+                logger.exception(f"Notice drafting failed: {e}")
+                explanation = {
+                    **explanation,
+                    "primary_reasons": principal_reasons(shap_factors),
+                    "notice_status": "unavailable",
+                }
 
         return {
             **score_result,
@@ -136,5 +148,7 @@ class LoanLensPipeline:
             "applicant_rights": explanation.get("applicant_rights"),
             "grounding_score": explanation.get("grounding_score"),
             "citation_check": explanation.get("citation_check"),
+            "reasons_check": explanation.get("reasons_check"),
+            "notice_status": explanation.get("notice_status", "not_required"),
             "generation_time_ms": explanation.get("generation_time_ms", 0),
         }

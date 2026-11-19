@@ -52,3 +52,21 @@ def check_citations(generated_text: str, passages: list[dict]) -> dict:
         "grounding_score": round(len(supported) / len(cited), 4) if cited else None,
     }
 
+
+
+def check_reasons(notice: str, reasons: list[str], other_labels: list[str]) -> dict:
+    """Does the notice state every principal reason, and no reason the model did not give?
+
+    reasons: labels decided from the model's SHAP factors.
+    other_labels: every other citable reason label; finding one in the notice
+    means the LLM added a reason of its own.
+    """
+    text = " ".join(re.sub(r"[^a-z0-9 ]+", " ", (notice or "").lower()).split())
+
+    def found(label: str) -> bool:
+        return " ".join(re.sub(r"[^a-z0-9 ]+", " ", label.lower()).split()) in text
+
+    missing = [r for r in reasons if not found(r)]
+    extra = [label for label in other_labels if label not in reasons and found(label)]
+    return {"stated": [r for r in reasons if found(r)], "missing": missing, "extra": extra,
+            "ok": not missing and not extra}
