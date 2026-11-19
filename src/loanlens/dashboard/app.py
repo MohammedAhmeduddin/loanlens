@@ -10,8 +10,10 @@ from loanlens.dashboard.samples import (  # noqa: E402
     HISTORY_NOTE,
     SAMPLES,
     build_payload,
+    changed_fields,
     format_result,
     load_demo_samples,
+    match_stored_sample,
 )
 
 API_URL = os.getenv("API_URL", "")
@@ -35,14 +37,20 @@ def analyze(income, loan, annuity, emp, ext, overdue, refused, late, debt, sampl
         except Exception:
             return ("⚠️ The API request failed. Please try again.", "", "", "", "", "")
 
-    stored = DEMO.get(sample)
-    if stored and [float(v) for v in inputs] == [float(v) for v in stored["inputs"]]:
+    match = match_stored_sample(inputs, DEMO)
+    if match:
+        name, stored = match
         footer = (
-            f"Stored output of a real pipeline run (model v{stored['model_version']}, "
+            f"Stored output of a real pipeline run for \"{name}\" (model v{stored['model_version']}, "
             f"{stored['llm_model']}, {stored['generated_at']})"
         )
         return format_result(stored["result"], footer=footer)
-    return (NO_API_MESSAGE, "", "", "", "", "")
+
+    message = NO_API_MESSAGE
+    if sample in DEMO:
+        diff = changed_fields(inputs, DEMO[sample]["inputs"])
+        message += f"\n\nChanged from \"{sample}\": {', '.join(diff)}."
+    return (message, "", "", "", "", "")
 
 
 def load_sample(s):
