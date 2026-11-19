@@ -3,16 +3,20 @@ Unit and integration tests for LoanLens FastAPI endpoints.
 OpenAI and MLflow calls are mocked — no real API costs in tests.
 """
 
-import pytest
-import numpy as np
 import os
+
+import numpy as np
+import pytest
+
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 os.environ["OMP_NUM_THREADS"] = "1"
 
-from fastapi.testclient import TestClient
-from unittest.mock import MagicMock
 import sys
 from pathlib import Path
+from unittest.mock import MagicMock
+
+from fastapi.testclient import TestClient
+
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 
@@ -293,7 +297,8 @@ class TestRequestToDataframe:
         assert np.isnan(self._row(name_housing_type="Castle")["name_housing_type"].iloc[0])
 
     def test_encoding_is_stable_across_processes(self):
-        import subprocess, sys as _sys
+        import subprocess
+        import sys as _sys
         code = (
             "import sys; sys.path.insert(0, 'src');"
             "from loanlens.api.main import request_to_dataframe;"

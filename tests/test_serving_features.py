@@ -81,6 +81,7 @@ class TestConsistencyChecks:
     ])
     def test_contradictory_history_rejected(self, bad, message):
         from pydantic import ValidationError
+
         from loanlens.api.schemas import ScoreRequest
         with pytest.raises(ValidationError, match=message):
             ScoreRequest(**self.BASE, **bad)

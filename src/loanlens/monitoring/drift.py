@@ -6,17 +6,17 @@ PSI 0.10-0.20: Moderate drift — monitor closely
 PSI > 0.20: Severe drift — retrain model
 """
 
+import json
+import sys
+from pathlib import Path
+
 import numpy as np
 import pandas as pd
-import json
-from pathlib import Path
 from loguru import logger
 
-import sys
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 
 from loanlens.config import get_settings
-
 
 # Features to monitor for drift
 MONITORED_FEATURES = [
@@ -28,7 +28,7 @@ MONITORED_FEATURES = [
     "prev_refused_count",
     "late_payment_rate",
     "amt_income_total",
-    "age_years",
+    "credit_to_annuity",
     "bureau_active_loans",
 ]
 
@@ -84,7 +84,7 @@ def compute_psi(
     return float(round(psi, 6))
 
 
-def compute_baseline(df: pd.DataFrame) -> dict:
+def compute_baseline(df: pd.DataFrame, path: Path = BASELINE_PATH, sample_size: int = 5000) -> dict:
     """
     Compute baseline statistics from training data.
     Saves to JSON file for future drift comparisons.
@@ -106,7 +106,8 @@ def compute_baseline(df: pd.DataFrame) -> dict:
             continue
 
         baseline[feature] = {
-            "values": values.tolist()[:5000],  # Store sample for PSI
+            # Random sample (not the first rows, which follow table order)
+            "values": np.random.default_rng(42).permutation(values)[:sample_size].tolist(),
             "mean": float(np.mean(values)),
             "std": float(np.std(values)),
             "p25": float(np.percentile(values, 25)),
@@ -115,11 +116,12 @@ def compute_baseline(df: pd.DataFrame) -> dict:
             "count": len(values),
         }
 
-    BASELINE_PATH.parent.mkdir(parents=True, exist_ok=True)
-    with open(BASELINE_PATH, "w") as f:
+    path = Path(path)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with open(path, "w") as f:
         json.dump(baseline, f)
 
-    logger.info(f"Baseline saved to {BASELINE_PATH} ({len(baseline)} features)")
+    logger.info(f"Baseline saved to {path} ({len(baseline)} features)")
     return baseline
 
 

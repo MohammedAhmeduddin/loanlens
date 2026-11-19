@@ -3,12 +3,13 @@ MLflow model registry management.
 Champion/challenger promotion workflow.
 """
 
-import mlflow
-from mlflow.tracking import MlflowClient
-from loguru import logger
-
 import sys
 from pathlib import Path
+
+import mlflow
+from loguru import logger
+from mlflow.tracking import MlflowClient
+
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 
 from loanlens.config import get_settings

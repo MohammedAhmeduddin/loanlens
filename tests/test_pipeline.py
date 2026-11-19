@@ -1,11 +1,13 @@
 """Tests for pipeline, registry, and monitoring modules."""
 
-import pytest
-import pandas as pd
-import numpy as np
-from unittest.mock import patch, MagicMock
 import sys
 from pathlib import Path
+from unittest.mock import MagicMock, patch
+
+import numpy as np
+import pandas as pd
+import pytest
+
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 

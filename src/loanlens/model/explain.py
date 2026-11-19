@@ -4,18 +4,18 @@ Extracts top risk factors per borrower.
 These factors become the RAG retrieval query.
 """
 
-import shap
-import numpy as np
-import pandas as pd
-import mlflow.xgboost
-from loguru import logger
-
 import sys
 from pathlib import Path
+
+import mlflow.xgboost
+import numpy as np
+import pandas as pd
+import shap
+from loguru import logger
+
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 
 from loanlens.config import get_settings
-
 
 # Maps internal feature names to business language and CFPB adverse action
 # reason codes. Only features listed here can be cited as a reason for denial:

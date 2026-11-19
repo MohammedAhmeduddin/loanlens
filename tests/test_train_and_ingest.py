@@ -1,15 +1,25 @@
 """Tests for training pipeline and ingestion."""
 
-import pytest
-import pandas as pd
-import numpy as np
-from unittest.mock import patch, MagicMock, call
 import sys
 from pathlib import Path
+from unittest.mock import MagicMock, patch
+
+import numpy as np
+import pandas as pd
+import pytest
+
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 
 # ── train.py tests ─────────────────────────────────────────────
+
+
+@pytest.fixture(autouse=True)
+def _no_baseline_file_from_training_tests():
+    """train_model writes the drift baseline; keep tests from touching data/."""
+    with patch("loanlens.model.train.compute_baseline"):
+        yield
+
 
 class TestTrain:
     @patch("loanlens.model.train.mlflow")
@@ -247,8 +257,9 @@ class TestAPIMain:
     def client(self, mock_pipeline):
         import loanlens.api.main as main_module
         main_module._pipeline = mock_pipeline
-        from loanlens.api.main import app
         from fastapi.testclient import TestClient
+
+        from loanlens.api.main import app
         return TestClient(app)
 
     def test_model_info_endpoint(self, client):

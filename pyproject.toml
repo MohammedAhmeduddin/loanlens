@@ -24,7 +24,6 @@ dependencies = [
     "chromadb>=0.4.22",
     "openai>=1.12",
     "sentence-transformers>=2.6",
-    "ragas>=0.1",
 
     # MLOps
     "mlflow>=2.10",
@@ -59,7 +58,7 @@ dev = [
     "pytest-cov>=4.1",
     "pytest-mock>=3.12",
     "httpx>=0.27",
-    "ruff>=0.3",
+    "ruff==0.17.5",  # pinned: new ruff releases add rules and break CI
     "mypy>=1.9",
 ]
 
@@ -72,8 +71,16 @@ asyncio_mode = "auto"
 addopts = "--cov=src/loanlens --cov-report=term-missing --cov-config=.coveragerc"
 
 [tool.ruff]
-line-length = 88
+line-length = 120
+
+[tool.ruff.lint]
 select = ["E", "F", "I"]
+# Scripts and modules add src/ to sys.path before importing the package.
+ignore = ["E402"]
+
+[tool.ruff.lint.per-file-ignores]
+# Mocked LLM responses are long JSON strings.
+"tests/*" = ["E501"]
 
 [tool.mypy]
 python_version = "3.11"

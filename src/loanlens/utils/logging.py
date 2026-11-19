@@ -4,7 +4,9 @@ Import logger from here — never use print() in production code.
 """
 
 import sys
+
 from loguru import logger
+
 from loanlens.config import get_settings
 
 
