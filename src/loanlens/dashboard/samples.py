@@ -119,6 +119,57 @@ def load_demo_samples() -> dict:
     return {}
 
 
+# Plain names for the analyst view. Notices never use these: they cite only the
+# reason-code labels of factors that raised risk.
+FEATURE_NAMES = {
+    "ext_source_mean": "External credit score (average)",
+    "ext_source_1": "External credit score 1",
+    "ext_source_2": "External credit score 2",
+    "ext_source_3": "External credit score 3",
+    "late_payment_rate": "Late payment rate",
+    "late_payment_count": "Late payments",
+    "employment_years": "Years employed",
+    "amt_income_total": "Annual income",
+    "amt_credit": "Loan amount",
+    "amt_annuity": "Annual loan payment",
+    "amt_goods_price": "Price of goods financed",
+    "credit_to_annuity": "Loan amount ÷ annual payment",
+    "debt_to_income": "Loan amount ÷ income",
+    "income_per_person": "Income per household member",
+    "bureau_debt_to_credit": "Bureau debt-to-credit ratio",
+    "bureau_overdue_count": "Overdue bureau accounts",
+    "bureau_active_loans": "Active bureau loans",
+    "bureau_total_debt": "Total bureau debt",
+    "prev_refused_count": "Previously refused applications",
+    "total_delinquency_count": "Total delinquencies",
+}
+
+
+def feature_name(feature: str) -> str:
+    return FEATURE_NAMES.get(feature, feature.replace("_", " ").capitalize())
+
+
+def _fmt_value(v) -> str:
+    if v is None:
+        return "missing"
+    if float(v).is_integer() and abs(v) >= 1:
+        return f"{v:,.0f}"
+    return f"{v:.2f}"
+
+
+def format_factor(f: dict) -> str:
+    """One SHAP factor for the analyst view: plain name, value, direction, and the
+    reason code only when the factor raised risk and has an honest mapping."""
+    raises = f["direction"] == "increases_risk"
+    name = feature_name(f["feature"]) if f.get("feature") else f.get("label", "Factor")
+    value = f" = {_fmt_value(f['feature_value'])}" if "feature_value" in f else ""
+    line = f"{f['rank']}. {name}{value}"
+    line += f"\n   SHAP {f['shap_value']:+.3f} ({'raises' if raises else 'lowers'} risk)"
+    if raises:
+        line += f" | {f['cfpb_code']}" if f.get("cfpb_code") else " | not a citable reason"
+    return line
+
+
 def format_result(result: dict, footer: str = "") -> tuple[str, str, str, str, str, str]:
     """API /explain response -> the six dashboard text boxes."""
     decision = result["decision"]
@@ -130,12 +181,7 @@ def format_result(result: dict, footer: str = "") -> tuple[str, str, str, str, s
     }[decision]
     decision_text = f"{label} — Estimated probability of default: {pct:.1f}%"
 
-    lines = []
-    for f in result.get("shap_factors", []):
-        arrow = "raises risk" if f["direction"] == "increases_risk" else "lowers risk"
-        code = f["cfpb_code"] or "not a citable reason"
-        lines.append(f"{f['rank']}. {f['label']}\n   SHAP {f['shap_value']:+.3f} ({arrow}) | {code}")
-    shap_text = "\n\n".join(lines) or "N/A"
+    shap_text = "\n\n".join(format_factor(f) for f in result.get("shap_factors", [])) or "N/A"
 
     if decision == "decline":
         notice = result.get("adverse_action_notice") or "N/A"
