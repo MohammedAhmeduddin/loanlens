@@ -1,0 +1,289 @@
+{
+  "High Risk \u2014 High debt, late payments": {
+    "inputs": [
+      24000,
+      380000,
+      19000,
+      0.5,
+      0.12,
+      4,
+      3,
+      0.6,
+      0.92
+    ],
+    "model_version": 4,
+    "llm_model": "gpt-4o-mini",
+    "generated_at": "2026-11-19",
+    "result": {
+      "risk_score": 40.47,
+      "probability": 0.4047,
+      "decision": "decline",
+      "shap_factors": [
+        {
+          "rank": 1,
+          "feature": "ext_source_mean",
+          "feature_value": 0.12,
+          "shap_value": 0.873033881187439,
+          "direction": "increases_risk",
+          "label": "External credit score assessment",
+          "cfpb_code": "A9 - Credit score",
+          "regulation": "FCRA"
+        },
+        {
+          "rank": 2,
+          "feature": "late_payment_rate",
+          "feature_value": 0.6,
+          "shap_value": 0.40035417675971985,
+          "direction": "increases_risk",
+          "label": "History of late installment payments",
+          "cfpb_code": "A1 - Delinquent past or present credit obligations",
+          "regulation": "FCRA"
+        },
+        {
+          "rank": 3,
+          "feature": "ext_source_2",
+          "feature_value": 0.12,
+          "shap_value": 0.27514877915382385,
+          "direction": "increases_risk",
+          "label": "Second external credit assessment",
+          "cfpb_code": "A9 - Credit score",
+          "regulation": "FCRA"
+        },
+        {
+          "rank": 4,
+          "feature": "bureau_debt_to_credit",
+          "feature_value": 0.92,
+          "shap_value": 0.175460547208786,
+          "direction": "increases_risk",
+          "label": "High credit utilization across accounts",
+          "cfpb_code": "A3 - Too many accounts or too much credit",
+          "regulation": "FCRA"
+        },
+        {
+          "rank": 5,
+          "feature": "credit_to_annuity",
+          "feature_value": 20.0,
+          "shap_value": 0.1485341638326645,
+          "direction": "increases_risk",
+          "label": "Credit amount relative to payment capacity",
+          "cfpb_code": "A6 - Debt-to-income ratio",
+          "regulation": "ECOA"
+        }
+      ],
+      "adverse_action_codes": [
+        "A9 - Credit score",
+        "A1 - Delinquent past or present credit obligations",
+        "A3 - Too many accounts or too much credit",
+        "A6 - Debt-to-income ratio"
+      ],
+      "retrieved_passages": [
+        {
+          "text": "applicant\u2019s right to a statement of reasons for adverse action. \nThe notification requirements for business credit applicants with gross revenues of more than \n$1,000,000 are relatively simple. The creditor must notify the applicant of the action taken \nwithin a reasonable time period. The notice may be oral or in writing; a written statement of the \nreasons for adverse action and the ECOA notice need be provided only if the applicant makes a",
+          "source": "supervision_manual.pdf",
+          "page": 850,
+          "similarity_score": 0.7514,
+          "rank": 1
+        },
+        {
+          "text": "examination procedures regar ding Regulation Z, 12 CFR 1026.21, for more information. \n[Click&type]  \nAdverse Action Notices (Fair Credit Reporting Act (FCRA) \nand Equal Credit Opportunity Act (ECOA)) \n1. Assess the servicer\u2019s compliance with FCRA, 15 USC 1681m, pertaining to notices required \nwhen a servicer takes adverse action with respect to any borrower on the basis of information \nin a consumer report.   \n[Click&type]",
+          "source": "supervision_manual.pdf",
+          "page": 376,
+          "similarity_score": 0.7421,
+          "rank": 2
+        },
+        {
+          "text": "accuracy and correct any inaccurate information. This notice provision is meant to complement \nan existing provision of the FCRA, Section 615(a), whereby a creditor that denies a consumer\u2019s \napplication for credit, based in whole or in part on information in a consumer\u2019s report, must \nprovide an adverse action notice. Section 615(h), covers the situation where credit is offered on \n\u201cmaterially less favorable terms,\u201d rather than being denied.",
+          "source": "supervision_manual.pdf",
+          "page": 946,
+          "similarity_score": 0.7141,
+          "rank": 3
+        }
+      ],
+      "adverse_action_notice": "We regret to inform you that your application for credit has been declined. The principal reasons for this decision include an external credit score assessment, a history of late installment payments, high credit utilization across accounts, and the credit amount relative to your payment capacity.",
+      "primary_reasons": [
+        "External credit score assessment",
+        "History of late installment payments",
+        "High credit utilization across accounts",
+        "Credit amount relative to payment capacity"
+      ],
+      "regulatory_basis": "FCRA, Section 615(a)",
+      "applicant_rights": "You have the right to a free copy of the credit report used, and to dispute its accuracy.",
+      "grounding_score": 1.0,
+      "citation_check": {
+        "cited": [
+          "Section 615(a)"
+        ],
+        "supported": [
+          "Section 615(a)"
+        ],
+        "unsupported": [],
+        "grounding_score": 1.0
+      },
+      "generation_time_ms": 3485
+    }
+  },
+  "Medium Risk \u2014 Average borrower": {
+    "inputs": [
+      55000,
+      200000,
+      10000,
+      4.0,
+      0.42,
+      1,
+      1,
+      0.1,
+      0.4
+    ],
+    "model_version": 4,
+    "llm_model": "gpt-4o-mini",
+    "generated_at": "2026-11-19",
+    "result": {
+      "risk_score": 11.49,
+      "probability": 0.1149,
+      "decision": "approve",
+      "shap_factors": [
+        {
+          "rank": 1,
+          "feature": "amt_goods_price",
+          "feature_value": 200000.0,
+          "shap_value": 0.21515947580337524,
+          "direction": "increases_risk",
+          "label": "Other model factor (not a citable reason)",
+          "cfpb_code": null,
+          "regulation": null
+        },
+        {
+          "rank": 2,
+          "feature": "amt_annuity",
+          "feature_value": 10000.0,
+          "shap_value": -0.2054518461227417,
+          "direction": "decreases_risk",
+          "label": "Other model factor (not a citable reason)",
+          "cfpb_code": null,
+          "regulation": null
+        },
+        {
+          "rank": 3,
+          "feature": "ext_source_mean",
+          "feature_value": 0.42,
+          "shap_value": 0.1664121299982071,
+          "direction": "increases_risk",
+          "label": "External credit score assessment",
+          "cfpb_code": "A9 - Credit score",
+          "regulation": "FCRA"
+        },
+        {
+          "rank": 4,
+          "feature": "credit_to_annuity",
+          "feature_value": 20.0,
+          "shap_value": 0.14749504625797272,
+          "direction": "increases_risk",
+          "label": "Credit amount relative to payment capacity",
+          "cfpb_code": "A6 - Debt-to-income ratio",
+          "regulation": "ECOA"
+        },
+        {
+          "rank": 5,
+          "feature": "amt_credit",
+          "feature_value": 200000.0,
+          "shap_value": -0.10374816507101059,
+          "direction": "decreases_risk",
+          "label": "Other model factor (not a citable reason)",
+          "cfpb_code": null,
+          "regulation": null
+        }
+      ],
+      "adverse_action_codes": [],
+      "retrieved_passages": [],
+      "adverse_action_notice": null,
+      "primary_reasons": [],
+      "regulatory_basis": null,
+      "applicant_rights": null,
+      "grounding_score": null,
+      "citation_check": null,
+      "generation_time_ms": 0
+    }
+  },
+  "Low Risk \u2014 Stable borrower": {
+    "inputs": [
+      120000,
+      180000,
+      9000,
+      12.0,
+      0.74,
+      0,
+      0,
+      0.0,
+      0.15
+    ],
+    "model_version": 4,
+    "llm_model": "gpt-4o-mini",
+    "generated_at": "2026-11-19",
+    "result": {
+      "risk_score": 0.99,
+      "probability": 0.0099,
+      "decision": "approve",
+      "shap_factors": [
+        {
+          "rank": 1,
+          "feature": "ext_source_mean",
+          "feature_value": 0.74,
+          "shap_value": -1.1192957162857056,
+          "direction": "decreases_risk",
+          "label": "External credit score assessment",
+          "cfpb_code": "A9 - Credit score",
+          "regulation": "FCRA"
+        },
+        {
+          "rank": 2,
+          "feature": "ext_source_2",
+          "feature_value": 0.74,
+          "shap_value": -0.2525409460067749,
+          "direction": "decreases_risk",
+          "label": "Second external credit assessment",
+          "cfpb_code": "A9 - Credit score",
+          "regulation": "FCRA"
+        },
+        {
+          "rank": 3,
+          "feature": "amt_goods_price",
+          "feature_value": 180000.0,
+          "shap_value": 0.20678092539310455,
+          "direction": "increases_risk",
+          "label": "Other model factor (not a citable reason)",
+          "cfpb_code": null,
+          "regulation": null
+        },
+        {
+          "rank": 4,
+          "feature": "employment_years",
+          "feature_value": 12.0,
+          "shap_value": -0.19752751290798187,
+          "direction": "decreases_risk",
+          "label": "Insufficient length of employment",
+          "cfpb_code": "A13 - Length of employment",
+          "regulation": "ECOA"
+        },
+        {
+          "rank": 5,
+          "feature": "amt_annuity",
+          "feature_value": 9000.0,
+          "shap_value": -0.1516307294368744,
+          "direction": "decreases_risk",
+          "label": "Other model factor (not a citable reason)",
+          "cfpb_code": null,
+          "regulation": null
+        }
+      ],
+      "adverse_action_codes": [],
+      "retrieved_passages": [],
+      "adverse_action_notice": null,
+      "primary_reasons": [],
+      "regulatory_basis": null,
+      "applicant_rights": null,
+      "grounding_score": null,
+      "citation_check": null,
+      "generation_time_ms": 0
+    }
+  }
+}
