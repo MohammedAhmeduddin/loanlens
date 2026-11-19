@@ -78,6 +78,12 @@ select = ["E", "F", "I"]
 # Scripts and modules add src/ to sys.path before importing the package.
 ignore = ["E402"]
 
+[tool.ruff.lint.isort]
+# ./mlflow/mlruns (local run store) would otherwise make ruff treat mlflow as
+# first-party on machines that have it, so import order differed from CI.
+known-first-party = ["loanlens"]
+known-third-party = ["mlflow"]
+
 [tool.ruff.lint.per-file-ignores]
 # Mocked LLM responses are long JSON strings.
 "tests/*" = ["E501"]
