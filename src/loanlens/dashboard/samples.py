@@ -86,6 +86,33 @@ def build_payload(income, loan, annuity, emp, ext, overdue, refused, late, debt)
     }
 
 
+FIELD_LABELS = (
+    "Annual income", "Loan amount", "Annual loan payment", "Years employed",
+    "External credit score", "Overdue accounts", "Refused applications",
+    "Late payment rate", "Bureau debt-to-credit ratio",
+)
+
+
+def _same(a, b) -> bool:
+    """Equal up to float noise (browser sliders can return 0.7400000000000001)."""
+    if a is None or b is None:   # an emptied number box
+        return a is b
+    a, b = float(a), float(b)
+    return abs(a - b) <= 1e-6 * max(1.0, abs(b))
+
+
+def changed_fields(inputs, sample_inputs) -> list[str]:
+    return [label for label, a, b in zip(FIELD_LABELS, inputs, sample_inputs) if not _same(a, b)]
+
+
+def match_stored_sample(inputs, demo: dict) -> tuple[str, dict] | None:
+    """The stored sample whose inputs equal these inputs, whatever the dropdown says."""
+    for name, entry in demo.items():
+        if not changed_fields(inputs, entry["inputs"]):
+            return name, entry
+    return None
+
+
 def load_demo_samples() -> dict:
     if DEMO_SAMPLES_PATH.exists():
         return json.loads(DEMO_SAMPLES_PATH.read_text())

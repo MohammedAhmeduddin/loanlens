@@ -60,3 +60,43 @@ def test_stored_demo_samples_match_sample_inputs():
         assert entry["inputs"] == list(SAMPLES[name])
         if entry["result"]["decision"] != "decline":
             assert entry["result"]["adverse_action_notice"] is None
+
+
+DEMO = {name: {"inputs": list(inputs)} for name, inputs in SAMPLES.items()}
+
+
+def test_match_tolerates_float_noise_from_browser_sliders():
+    from loanlens.dashboard.samples import match_stored_sample
+    low = list(SAMPLES["Low Risk — Stable borrower"])
+    noisy = [v + 1e-12 if isinstance(v, float) else v for v in low]
+    noisy[4] = 0.7400000000000001
+    assert match_stored_sample(noisy, DEMO)[0] == "Low Risk — Stable borrower"
+
+
+def test_match_uses_inputs_not_the_dropdown():
+    from loanlens.dashboard.samples import match_stored_sample
+    high = SAMPLES["High Risk — High debt, late payments"]
+    assert match_stored_sample(high, DEMO)[0] == "High Risk — High debt, late payments"
+
+
+def test_changed_inputs_do_not_match_and_are_named():
+    from loanlens.dashboard.samples import changed_fields, match_stored_sample
+    edited = list(SAMPLES["High Risk — High debt, late payments"])
+    edited[0] = 30000
+    assert match_stored_sample(edited, DEMO) is None
+    assert changed_fields(edited, DEMO["High Risk — High debt, late payments"]["inputs"]) == ["Annual income"]
+
+
+def test_empty_number_box_does_not_crash_or_match():
+    from loanlens.dashboard.samples import match_stored_sample
+    edited = list(SAMPLES["Low Risk — Stable borrower"])
+    edited[0] = None
+    assert match_stored_sample(edited, DEMO) is None
+
+
+def test_every_committed_demo_sample_matches_its_own_inputs():
+    from loanlens.dashboard.samples import load_demo_samples, match_stored_sample
+    demo = load_demo_samples()
+    for name, inputs in SAMPLES.items():
+        if name in demo:
+            assert match_stored_sample(inputs, demo)[0] == name
