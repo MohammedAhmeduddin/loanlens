@@ -163,6 +163,8 @@ async def explain(request: ExplainRequest):
             applicant_rights=result.get("applicant_rights"),
             grounding_score=result.get("grounding_score"),
             citation_check=result.get("citation_check"),
+            reasons_check=result.get("reasons_check"),
+            notice_status=result.get("notice_status", "not_required"),
             generation_time_ms=result.get("generation_time_ms", 0),
         )
     except Exception as e:

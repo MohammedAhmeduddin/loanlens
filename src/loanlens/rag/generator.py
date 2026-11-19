@@ -15,8 +15,8 @@ from openai import BadRequestError, OpenAI
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 
 from loanlens.config import get_settings
-from loanlens.model.explain import is_citable_reason
-from loanlens.rag.citations import check_citations
+from loanlens.model.explain import FEATURE_TO_REGULATORY, is_citable_reason
+from loanlens.rag.citations import check_citations, check_reasons
 
 SYSTEM_PROMPT = """You are a compliance officer at a lending institution.
 Your job is to write adverse action notices that are:
@@ -167,6 +167,14 @@ Return ONLY the JSON object, no other text.
         result["grounding_score"] = check["grounding_score"]
         if check["unsupported"]:
             logger.warning(f"Citations not found in retrieved passages: {check['unsupported']}")
+
+        other_labels = sorted({v["label"] for v in FEATURE_TO_REGULATORY.values()})
+        result["reasons_check"] = check_reasons(result.get("adverse_action_notice", ""), reasons, other_labels)
+        if not result["reasons_check"]["ok"]:
+            logger.warning(f"Notice reasons differ from the model's: {result['reasons_check']}")
+        result["notice_status"] = (
+            "drafted" if result["reasons_check"]["ok"] and not check["unsupported"] else "needs_review"
+        )
 
         result["generation_time_ms"] = elapsed_ms
         result["model"] = settings.openai_model

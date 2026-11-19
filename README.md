@@ -18,8 +18,8 @@ pinned: false
 
 [![LoanLens CI](https://github.com/MohammedAhmeduddin/loanlens/actions/workflows/ci.yml/badge.svg)](https://github.com/MohammedAhmeduddin/loanlens/actions/workflows/ci.yml)
 ![Python](https://img.shields.io/badge/python-3.11-3776AB?logo=python&logoColor=white)
-![Tests](https://img.shields.io/badge/tests-174%20passing-2EA44F)
-![Coverage](https://img.shields.io/badge/coverage-89.6%25-2EA44F)
+![Tests](https://img.shields.io/badge/tests-203%20passing-2EA44F)
+![Coverage](https://img.shields.io/badge/coverage-90.0%25-2EA44F)
 ![Lint](https://img.shields.io/badge/lint-ruff-D7FF64)
 
 [**Live Demo**](https://huggingface.co/spaces/AhmeduddinMohammed/loanlens) ·
@@ -95,7 +95,7 @@ All figures are from model **v4** on a held-out, stratified test set of **46,127
 | **Fairness (four-fifths rule)** | impact ratio 0.948 by sex, 0.803 by age band, both passing |
 | **Training data** | 307,511 applications · 13.6M installment payments · 1.7M bureau records |
 | **Regulatory corpus** | 9,977 chunks from the CFPB Supervision and Examination Manual |
-| **Quality** | 174 tests, 89.6% coverage, ruff lint and an 85% coverage gate in CI |
+| **Quality** | 203 tests, 90.0% coverage, ruff lint and an 85% coverage gate in CI |
 
 ---
 
@@ -240,7 +240,9 @@ are shown as "not a citable reason" and never appear on a notice.
 | Retrieval | Top 5 by cosine similarity, filtered at ≥ 0.30, top 3 kept. Runs for declines only. |
 | Drafting | OpenAI `gpt-6-luna` in JSON mode. The prompt receives only the model's principal reasons and the retrieved passages, and must cite only that text. |
 | Verification | `citations.py` extracts every cited regulation (CFR, U.S.C., § and "Section" formats) and checks each one against the retrieved passages. `grounding_score` = supported ÷ cited, and unsupported citations are returned and logged. |
-| Robustness | Timeout and retries; retries without `temperature` if the model rejects it; a clear error on an empty reply. |
+| Reason check | `check_reasons` confirms the notice states every principal reason and no reason the model did not give. |
+| Notice status | `drafted` when both checks pass, `needs_review` when either fails, `not_required` for approvals and reviews. |
+| Outage handling | Timeout and retries; retries without `temperature` if the model rejects it. If drafting still fails, `/explain` returns the decision, factors, reason codes and principal reasons with `notice_status: "unavailable"`; it never fails the whole request. |
 
 ### 7. Training–Serving Parity
 
@@ -288,6 +290,8 @@ the work in this repository.
 | 8 | The LLM chose the reasons and graded its own "grounding" | Unverifiable statements on a legal notice | Reasons from the model; citations verified in code |
 | 9 | Drift job compared the training data with itself | It could never detect drift | Baseline from the training split; new data compared against it |
 | 10 | Unknown API fields silently dropped | Inputs such as `age_years` were ignored without error | Unknown fields rejected with 422 |
+| 11 | An LLM outage failed the whole `/explain` request | A decline lost its score and reasons, which do not need the LLM | Decision and reasons always returned; notice marked unavailable |
+| 12 | Implausible inputs accepted (e.g. a $10T income) | The model silently extrapolated far outside its training data | Upper bounds and cross-field checks; 422 with the field named |
 
 ---
 
@@ -318,7 +322,7 @@ Interactive docs at `http://localhost:8000/docs` when the API is running.
 |---|---|---|
 | `GET` | `/health` | Model loaded and indexed chunk count |
 | `POST` | `/score` | Probability of default and decision |
-| `POST` | `/explain` | Score, SHAP factors and, for declines, reason codes, retrieved passages, draft notice and citation check |
+| `POST` | `/explain` | Score, SHAP factors and, for declines, reason codes, retrieved passages, draft notice, citation and reason checks, and `notice_status` |
 | `GET` | `/model/info` | Metrics and cutoffs of the exact model version being served |
 
 <details>
@@ -388,6 +392,9 @@ and the response below is from that full request)
 | `prev_refused_count` > `prev_app_count` | `prev_refused_count cannot exceed prev_app_count` |
 | `late_payment_rate` > 0 with no `instalment_count` | `late_payment_rate > 0 requires instalment_count > 0` |
 | A `has_*_history` flag of 0 with a positive count | `... contradicts ...` |
+| Implausible values (e.g. income above 200M, more than 500 bureau loans, 60+ years employed) | `Input should be less than or equal to ...` |
+| `amt_annuity` > `amt_credit` | `amt_annuity (yearly payment) cannot exceed amt_credit (loan amount)` |
+| `late_payment_count` > `instalment_count`, or oldest bureau credit later than newest | `... cannot exceed ...` / `... must be earlier ...` |
 
 </details>
 
@@ -430,11 +437,14 @@ uvicorn src.loanlens.api.main:app --port 8000      # http://localhost:8000/docs
 API_URL=http://localhost:8000 python src/loanlens/dashboard/app.py   # http://localhost:7860
 ```
 
+> **After retraining**, restart the API. It loads the latest model version and its preprocessing once at
+> startup and keeps serving that version until restarted; `GET /model/info` shows which version is live.
+
 ### Useful Commands
 
 | Command | Purpose |
 |---|---|
-| `pytest -q` | Run the 174 tests (OpenAI, MLflow and ChromaDB are mocked) |
+| `pytest -q` | Run the 203 tests (OpenAI, MLflow and ChromaDB are mocked) |
 | `ruff check src tests scripts` | Lint |
 | `python scripts/load_data.py --tables installments_payments` | Reload a single table |
 | `python scripts/generate_demo_samples.py` | Regenerate the dashboard's stored demo results from the real pipeline |
@@ -502,7 +512,7 @@ loanlens/
 │   ├── load_data.py             # Bulk CSV → PostgreSQL loader (COPY)
 │   ├── generate_demo_samples.py # Regenerate dashboard demo results
 │   └── run_drift_check.py       # PSI check against the training baseline
-├── tests/                       # 174 tests (see below)
+├── tests/                       # 203 tests (see below)
 ├── data/regulations/            # CFPB Supervision and Examination Manual (PDF)
 ├── .github/workflows/ci.yml     # Lint + tests with 85% coverage gate
 ├── docker-compose.yml           # PostgreSQL 16 (+ pgAdmin for local use)
@@ -528,8 +538,9 @@ Several tests train a small real XGBoost model to verify behavior end to end.
 | `test_monitoring.py` | 16 | PSI, drift detection, baseline sampling, drift script exit codes, Slack alerts |
 | `test_citations.py` | 13 | Citation extraction and verification, model-decided reasons, OpenAI call handling |
 | `test_rag.py` | 12 | Generator parsing, retriever filtering, ingestion |
-| `test_dashboard_samples.py` | 5 | Demo formatting; no notices for approvals or reviews |
-| **Total** | **174** | **89.6% line coverage** |
+| `test_dashboard_samples.py` | 13 | Demo formatting and input matching; no notices for approvals or reviews |
+| `test_edge_cases.py` | 21 | Implausible input, LLM outage during a decline, notice states exactly the model's reasons |
+| **Total** | **203** | **90.0% line coverage** |
 
 **GitHub Actions** (`.github/workflows/ci.yml`) runs on every push and pull request to `main`:
 
@@ -568,6 +579,7 @@ Several tests train a small real XGBoost model to verify behavior end to end.
   about adverse-action requirements. Its role is to ground citations, not to find borrower-specific facts.
 - **Overfitting gap.** Train AUC 0.854 vs test 0.770, with no hyperparameter search yet.
 - **No production traffic.** Drift monitoring runs on a file you provide; there is no live request log.
+- **Model updates need a restart.** The API pins one model version at startup; there is no hot reload.
 - **Demo service.** The API has no authentication or rate limiting.
 
 ---
