@@ -5,18 +5,18 @@ and drafts an adverse action notice. Reasons and citation checks are done in cod
 """
 
 import json
+import sys
 import time
-from openai import OpenAI
-from loguru import logger
 from pathlib import Path
 
-import sys
+from loguru import logger
+from openai import BadRequestError, OpenAI
+
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 
 from loanlens.config import get_settings
 from loanlens.model.explain import is_citable_reason
 from loanlens.rag.citations import check_citations
-
 
 SYSTEM_PROMPT = """You are a compliance officer at a lending institution.
 Your job is to write adverse action notices that are:
@@ -29,6 +29,29 @@ You must only cite regulations that appear in the provided context.
 Never invent regulatory citations. Never use prohibited bases under ECOA
 (race, color, religion, national origin, sex, marital status, age).
 """
+
+
+def _create_completion(client, settings, messages):
+    """Call the chat API in JSON mode.
+
+    Some models (reasoning models such as gpt-6-luna) only accept their
+    default temperature; if the model rejects it, retry once without it.
+    """
+    kwargs = dict(
+        model=settings.openai_model,
+        messages=messages,
+        max_completion_tokens=settings.openai_max_completion_tokens,
+        response_format={"type": "json_object"},
+        temperature=settings.openai_temperature,
+    )
+    try:
+        return client.chat.completions.create(**kwargs)
+    except BadRequestError as e:
+        if "temperature" not in str(e).lower():
+            raise
+        logger.info(f"{settings.openai_model} rejected temperature; retrying with the model default")
+        kwargs.pop("temperature")
+        return client.chat.completions.create(**kwargs)
 
 
 def principal_reasons(shap_factors: list[dict]) -> list[str]:
@@ -48,7 +71,7 @@ def generate_explanation(
     decision: str,
 ) -> dict:
     """
-    Generate structured adverse action notice using GPT-4o-mini.
+    Draft an adverse action notice with the configured OpenAI model.
 
     Args:
         shap_factors: Top risk factors from SHAP explainer
@@ -60,7 +83,11 @@ def generate_explanation(
         Structured explanation dict
     """
     settings = get_settings()
-    client = OpenAI(api_key=settings.openai_api_key)
+    client = OpenAI(
+        api_key=settings.openai_api_key,
+        timeout=settings.openai_timeout_seconds,
+        max_retries=settings.openai_max_retries,
+    )
 
     # Build context from retrieved passages
     regulatory_context = "\n\n".join([
@@ -100,19 +127,23 @@ Return ONLY the JSON object, no other text.
     start_time = time.time()
 
     try:
-        response = client.chat.completions.create(
-            model=settings.openai_model,
-            max_tokens=settings.openai_max_tokens,
-            temperature=settings.openai_temperature,
-            messages=[
+        response = _create_completion(
+            client,
+            settings,
+            [
                 {"role": "system", "content": SYSTEM_PROMPT},
                 {"role": "user", "content": user_prompt},
             ],
-            response_format={"type": "json_object"},
         )
 
         elapsed_ms = int((time.time() - start_time) * 1000)
-        raw_response = response.choices[0].message.content.strip()
+        choice = response.choices[0]
+        raw_response = (choice.message.content or "").strip()
+        if not raw_response:
+            raise ValueError(
+                f"Empty response from {settings.openai_model} (finish_reason={choice.finish_reason}); "
+                "raise OPENAI_MAX_COMPLETION_TOKENS if it is 'length'"
+            )
 
         # Parse JSON response
         try:

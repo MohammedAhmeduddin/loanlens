@@ -3,9 +3,10 @@ Application configuration via environment variables.
 Never hardcode secrets — all sensitive values come from .env
 """
 
-from pydantic_settings import BaseSettings
-from pydantic import Field
 from functools import lru_cache
+
+from pydantic import Field
+from pydantic_settings import BaseSettings
 
 
 class Settings(BaseSettings):
@@ -45,9 +46,14 @@ class Settings(BaseSettings):
 
     # OpenAI
     openai_api_key: str = Field(...)
-    openai_model: str = "gpt-4o-mini"
-    openai_max_tokens: int = 1000
-    openai_temperature: float = 0.1  # Low temp for consistent compliance text
+    # gpt-4o-mini shuts down on 2027-01-14; OpenAI recommends gpt-6-luna.
+    openai_model: str = "gpt-6-luna"
+    # Reasoning models count reasoning tokens against this limit, so it is
+    # larger than the visible notice needs.
+    openai_max_completion_tokens: int = 4000
+    openai_temperature: float = 0.1  # Dropped automatically if the model rejects it
+    openai_timeout_seconds: float = 60.0
+    openai_max_retries: int = 2
 
     # ChromaDB
     chroma_persist_dir: str = "./chroma_db"

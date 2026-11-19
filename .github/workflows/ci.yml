@@ -31,14 +31,14 @@ jobs:
           pip install -e ".[dev]"
           pip install langchain-text-splitters pypdf
 
-      - name: Run tests
+      - name: Lint (ruff, version pinned in pyproject)
+        run: ruff check src tests scripts
+
+      - name: Run tests (coverage gate from .coveragerc)
         run: |
           python -m pytest tests/ \
             --no-header \
-            -q \
-            --cov=src/loanlens \
-            --cov-report=term-missing \
-            --cov-fail-under=80
+            -q
         env:
           TOKENIZERS_PARALLELISM: "false"
           OMP_NUM_THREADS: "1"

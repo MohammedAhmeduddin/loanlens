@@ -4,28 +4,33 @@ Serves credit scoring and RAG explanation endpoints.
 """
 
 import os
+
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 os.environ["OMP_NUM_THREADS"] = "1"
 
+import sys
+from contextlib import asynccontextmanager
+from pathlib import Path
+
+import pandas as pd
 from fastapi import FastAPI, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
-from contextlib import asynccontextmanager
 from loguru import logger
-import pandas as pd
 
-import sys
-from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 
+from loanlens.api.schemas import (
+    ExplainRequest,
+    ExplainResponse,
+    HealthResponse,
+    RetrievedPassage,
+    ScoreRequest,
+    ScoreResponse,
+    ShapFactor,
+)
 from loanlens.config import get_settings
 from loanlens.model.features import encode_categoricals
 from loanlens.model.serving import derive_features
-from loanlens.api.schemas import (
-    ScoreRequest, ScoreResponse,
-    ExplainRequest, ExplainResponse,
-    HealthResponse, ShapFactor, RetrievedPassage
-)
-
 
 # Global pipeline instance — loaded once at startup
 _pipeline = None

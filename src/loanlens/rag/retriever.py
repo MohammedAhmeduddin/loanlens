@@ -3,12 +3,12 @@ Regulatory chunk retrieval from ChromaDB.
 Cosine similarity search with a minimum-similarity filter (no reranker).
 """
 
-import chromadb
-from langchain_community.embeddings import HuggingFaceEmbeddings
-from loguru import logger
+import sys
 from pathlib import Path
 
-import sys
+from langchain_community.embeddings import HuggingFaceEmbeddings
+from loguru import logger
+
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 
 from loanlens.config import get_settings

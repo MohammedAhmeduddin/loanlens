@@ -12,7 +12,7 @@
       0.92
     ],
     "model_version": 4,
-    "llm_model": "gpt-4o-mini",
+    "llm_model": "gpt-6-luna",
     "generated_at": "2026-11-19",
     "result": {
       "risk_score": 40.47,
@@ -99,27 +99,29 @@
           "rank": 3
         }
       ],
-      "adverse_action_notice": "We regret to inform you that your application for credit has been declined. The principal reasons for this decision include an external credit score assessment, a history of late installment payments, high credit utilization across accounts, and the credit amount relative to your payment capacity.",
+      "adverse_action_notice": "We regret to inform you that your application for credit has been declined. The principal reasons for this decision are: External credit score assessment; History of late installment payments; High credit utilization across accounts; and Credit amount relative to payment capacity. This decision was based in whole or in part on information in a consumer report. You have the right to obtain a free copy of the credit report used and to dispute its accuracy.",
       "primary_reasons": [
         "External credit score assessment",
         "History of late installment payments",
         "High credit utilization across accounts",
         "Credit amount relative to payment capacity"
       ],
-      "regulatory_basis": "FCRA, Section 615(a)",
-      "applicant_rights": "You have the right to a free copy of the credit report used, and to dispute its accuracy.",
+      "regulatory_basis": "FCRA Section 615(a) (15 U.S.C. 1681m), referenced in the provided context.",
+      "applicant_rights": "You have the right to obtain a free copy of the credit report used and to dispute its accuracy.",
       "grounding_score": 1.0,
       "citation_check": {
         "cited": [
+          "15 U.S.C. 1681m",
           "Section 615(a)"
         ],
         "supported": [
+          "15 U.S.C. 1681m",
           "Section 615(a)"
         ],
         "unsupported": [],
         "grounding_score": 1.0
       },
-      "generation_time_ms": 3485
+      "generation_time_ms": 11891
     }
   },
   "Medium Risk \u2014 Average borrower": {
@@ -135,7 +137,7 @@
       0.4
     ],
     "model_version": 4,
-    "llm_model": "gpt-4o-mini",
+    "llm_model": "gpt-6-luna",
     "generated_at": "2026-11-19",
     "result": {
       "risk_score": 11.49,
@@ -217,7 +219,7 @@
       0.15
     ],
     "model_version": 4,
-    "llm_model": "gpt-4o-mini",
+    "llm_model": "gpt-6-luna",
     "generated_at": "2026-11-19",
     "result": {
       "risk_score": 0.99,

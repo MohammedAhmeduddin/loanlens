@@ -13,11 +13,11 @@ stays flat and the full 13.6M-row installments file loads in minutes.
 import argparse
 import csv
 import io
+import sys
+from pathlib import Path
 
 import pandas as pd
 from sqlalchemy import create_engine, inspect, text
-from pathlib import Path
-import sys
 
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 

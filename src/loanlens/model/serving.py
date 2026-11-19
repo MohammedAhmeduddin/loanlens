@@ -61,7 +61,8 @@ def derive_features(data: dict) -> dict:
     # Aggregates implied by what was provided
     if d.get("late_payment_count") is None and d.get("instalment_count") and d.get("late_payment_rate") is not None:
         d["late_payment_count"] = round(d["late_payment_rate"] * d["instalment_count"])
-    if d.get("bureau_closed_loans") is None and d.get("bureau_loan_count") is not None and d.get("bureau_active_loans") is not None:
+    loans, active = d.get("bureau_loan_count"), d.get("bureau_active_loans")
+    if d.get("bureau_closed_loans") is None and loans is not None and active is not None:
         d["bureau_closed_loans"] = d["bureau_loan_count"] - d["bureau_active_loans"]
 
     for f in COALESCE_ZERO:

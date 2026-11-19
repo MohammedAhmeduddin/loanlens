@@ -1,11 +1,13 @@
 """Tests for drift monitoring."""
 
-import pytest
-import numpy as np
-import pandas as pd
-from unittest.mock import patch, MagicMock
 import sys
 from pathlib import Path
+from unittest.mock import MagicMock, patch
+
+import numpy as np
+import pandas as pd
+import pytest
+
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 
@@ -167,3 +169,46 @@ class TestAlerts:
             result = send_slack_alert(report)
             assert result is True
             mock_post.assert_called_once()
+
+
+class TestDriftScript:
+    """scripts/run_drift_check.py compares a file against the training baseline."""
+
+    def _setup(self, tmp_path, shift=0.0):
+        import json as _json
+        import sys as _sys
+        from pathlib import Path as _Path
+        _sys.path.insert(0, str(_Path(__file__).parent.parent / "scripts"))
+        from loanlens.monitoring.drift import compute_baseline
+        rng = np.random.default_rng(0)
+        train = pd.DataFrame({"ext_source_mean": rng.uniform(0, 1, 3000),
+                              "debt_to_income": rng.uniform(0, 10, 3000)})
+        baseline = tmp_path / "baseline.json"
+        compute_baseline(train, path=baseline)
+        assert len(_json.loads(baseline.read_text())["ext_source_mean"]["values"]) == 3000
+        current = pd.DataFrame({"ext_source_mean": rng.uniform(0, 1, 2000) * (1 - shift),
+                                "debt_to_income": rng.uniform(0, 10, 2000)})
+        current_path = tmp_path / "current.csv"
+        current.to_csv(current_path, index=False)
+        return baseline, current_path
+
+    def test_stable_data_exits_zero(self, tmp_path):
+        baseline, current = self._setup(tmp_path)
+        import run_drift_check
+        assert run_drift_check.main(["--current", str(current), "--baseline", str(baseline)]) == 0
+
+    def test_shifted_data_exits_one(self, tmp_path):
+        baseline, current = self._setup(tmp_path, shift=0.6)
+        import run_drift_check
+        assert run_drift_check.main(["--current", str(current), "--baseline", str(baseline)]) == 1
+
+    def test_missing_baseline_is_an_error_not_a_pass(self, tmp_path):
+        _, current = self._setup(tmp_path)
+        import run_drift_check
+        assert run_drift_check.main(["--current", str(current), "--baseline", str(tmp_path / "none.json")]) == 2
+
+    def test_baseline_is_a_random_sample_not_the_first_rows(self, tmp_path):
+        from loanlens.monitoring.drift import compute_baseline
+        ordered = pd.DataFrame({"ext_source_mean": np.linspace(0, 1, 20000)})
+        b = compute_baseline(ordered, path=tmp_path / "b.json", sample_size=1000)
+        assert max(b["ext_source_mean"]["values"]) > 0.9   # head-of-table would stop at 0.05

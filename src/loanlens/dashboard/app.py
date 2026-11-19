@@ -70,10 +70,14 @@ Uses XGBoost credit scoring + SHAP explainability + ChromaDB retrieval + an Open
             loan = gr.Number(label="Loan Amount Requested ($)", value=380000, minimum=1000)
             annuity = gr.Number(label="Annual Loan Payment ($)", value=19000, minimum=100)
             emp = gr.Slider(label="Years Employed", minimum=0, maximum=40, value=0.5, step=0.5)
-            ext = gr.Slider(label="External Credit Score (0=poor, 1=excellent)", minimum=0.0, maximum=1.0, value=0.12, step=0.01)
+            ext = gr.Slider(
+                label="External Credit Score (0=poor, 1=excellent)", minimum=0.0, maximum=1.0, value=0.12, step=0.01
+            )
             overdue = gr.Slider(label="Overdue Accounts in Credit History", minimum=0, maximum=20, value=4, step=1)
             refused = gr.Slider(label="Previous Loan Applications Refused", minimum=0, maximum=10, value=3, step=1)
-            late = gr.Slider(label="Late Payment Rate (0=never, 1=always)", minimum=0.0, maximum=1.0, value=0.6, step=0.01)
+            late = gr.Slider(
+                label="Late Payment Rate (0=never, 1=always)", minimum=0.0, maximum=1.0, value=0.6, step=0.01
+            )
             debt = gr.Slider(label="Bureau Debt-to-Credit Ratio", minimum=0.0, maximum=1.0, value=0.92, step=0.01)
             btn = gr.Button("🔍 Analyze Application", variant="primary", size="lg")
 
@@ -82,7 +86,9 @@ Uses XGBoost credit scoring + SHAP explainability + ChromaDB retrieval + an Open
             decision_out = gr.Textbox(label="Decision", interactive=False, lines=1)
             shap_out = gr.Textbox(label="Top Factors (SHAP)", interactive=False, lines=10)
             notice_out = gr.Textbox(label="📄 Adverse Action Notice (declines only)", interactive=False, lines=5)
-            citations_out = gr.Textbox(label="📚 Regulatory Citations (Retrieved from CFPB Manual)", interactive=False, lines=8)
+            citations_out = gr.Textbox(
+                label="📚 Regulatory Citations (Retrieved from CFPB Manual)", interactive=False, lines=8
+            )
             metadata_out = gr.Textbox(label="📈 Details", interactive=False, lines=4)
             rights_out = gr.Textbox(label="⚖️ Applicant Rights", interactive=False, lines=2)
 

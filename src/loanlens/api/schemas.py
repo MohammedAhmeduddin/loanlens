@@ -3,9 +3,10 @@ Pydantic request/response schemas for LoanLens API.
 Strict typing on all inputs and outputs.
 """
 
-from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
-from typing import Optional
 from enum import Enum
+from typing import Optional
+
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
 
 class Decision(str, Enum):
@@ -111,7 +112,9 @@ class ScoreRequest(BaseModel):
     avg_payment_deficit: Optional[float] = None
     avg_days_late: Optional[float] = Field(None, ge=0)
     instalment_count: int = Field(0, ge=0, description="Past instalments on record")
-    has_instalment_history: Optional[int] = Field(None, ge=0, le=1, description="Derived from instalment_count if omitted")
+    has_instalment_history: Optional[int] = Field(
+        None, ge=0, le=1, description="Derived from instalment_count if omitted"
+    )
 
     @model_validator(mode="after")
     def history_is_consistent(self):

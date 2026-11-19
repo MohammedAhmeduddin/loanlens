@@ -143,6 +143,7 @@ class TestHonestReasons:
 
     def test_unmapped_feature_never_shows_raw_column_name(self):
         from unittest.mock import MagicMock, patch
+
         from loanlens.model.explain import UNMAPPED_LABEL, CreditExplainer
         with patch("shap.TreeExplainer") as tree:
             tree.return_value.shap_values.return_value = np.array([[0.8, 0.1]])
@@ -240,6 +241,7 @@ class TestThresholdTable:
 class TestCalibrationMetrics:
     def test_compute_metrics_reports_calibration(self):
         from unittest.mock import MagicMock
+
         from loanlens.model.evaluate import compute_metrics
         model = MagicMock()
         model.predict_proba.return_value = np.array([[0.9, 0.1], [0.8, 0.2], [0.3, 0.7], [0.6, 0.4]])
@@ -251,5 +253,6 @@ class TestCalibrationMetrics:
 
 def test_class_weighting_is_off_by_default():
     import inspect
+
     from loanlens.model.train import train_model
     assert inspect.signature(train_model).parameters["use_class_weight"].default is False

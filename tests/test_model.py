@@ -1,11 +1,13 @@
 """Tests for credit scoring model components."""
 
-import pytest
-import numpy as np
-import pandas as pd
-from unittest.mock import patch, MagicMock, mock_open
 import sys
 from pathlib import Path
+from unittest.mock import MagicMock, patch
+
+import numpy as np
+import pandas as pd
+import pytest
+
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
 
 
@@ -88,8 +90,9 @@ class TestEvaluate:
         assert 0 <= gini <= 1
 
     def test_gini_equals_2auc_minus_1(self):
-        from loanlens.model.evaluate import gini_coefficient
         from sklearn.metrics import roc_auc_score
+
+        from loanlens.model.evaluate import gini_coefficient
         y_true = np.array([0, 1, 0, 1])
         y_prob = np.array([0.2, 0.8, 0.3, 0.7])
         gini = gini_coefficient(y_true, y_prob)

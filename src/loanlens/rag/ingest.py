@@ -4,16 +4,16 @@ Loads PDFs, chunks them, embeds with sentence-transformers,
 and stores in ChromaDB for retrieval.
 """
 
-import chromadb
-from chromadb.config import Settings as ChromaSettings
-from langchain_community.document_loaders import PyPDFLoader
-from langchain_text_splitters import RecursiveCharacterTextSplitter
-from langchain_community.embeddings import HuggingFaceEmbeddings
-from pathlib import Path
-from loguru import logger
 import hashlib
-
 import sys
+from pathlib import Path
+
+import chromadb
+from langchain_community.document_loaders import PyPDFLoader
+from langchain_community.embeddings import HuggingFaceEmbeddings
+from langchain_text_splitters import RecursiveCharacterTextSplitter
+from loguru import logger
+
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 
 from loanlens.config import get_settings

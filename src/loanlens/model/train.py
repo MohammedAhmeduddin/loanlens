@@ -4,29 +4,31 @@ Trains on Home Credit feat_master feature table.
 Logs all metrics, parameters, and artifacts to MLflow.
 """
 
+import json
+import sys
+from pathlib import Path
+
 import mlflow
 import mlflow.xgboost
-import xgboost as xgb
 import numpy as np
 import pandas as pd
-from sklearn.model_selection import train_test_split
-from pathlib import Path
+import xgboost as xgb
 from loguru import logger
-import json
+from sklearn.model_selection import train_test_split
 
-import sys
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 
 from loanlens.config import get_settings
 from loanlens.model.data_loader import load_features, preprocess_features
-from loanlens.model.features import FAIRNESS_AUDIT_COLS, build_category_maps
+from loanlens.model.evaluate import compute_metrics
 from loanlens.model.fairness import (
     age_band,
     fairness_report,
     group_outcomes,
     threshold_table,
 )
-from loanlens.model.evaluate import compute_metrics
+from loanlens.model.features import FAIRNESS_AUDIT_COLS, build_category_maps
+from loanlens.monitoring.drift import BASELINE_PATH, compute_baseline
 
 
 def train_model(
@@ -197,7 +199,14 @@ def train_model(
             table_path = "/tmp/threshold_table.csv"
             table.to_csv(table_path, index=False)
             mlflow.log_artifact(table_path, "fairness")
-            logger.info("Cutoff trade-offs on the test set (approve if score < cutoff):\n" + table.to_string(index=False))
+            logger.info(
+                "Cutoff trade-offs on the test set (approve if score < cutoff):\n"
+                + table.to_string(index=False, col_space=8)
+            )
+
+        # ── 5d. Drift baseline: the training distribution new data is compared to
+        compute_baseline(X_train)
+        mlflow.log_artifact(str(BASELINE_PATH), "monitoring")
 
         # ── 6. Log feature importance ─────────────────────────────
         importance_df = pd.DataFrame({

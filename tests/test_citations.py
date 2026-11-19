@@ -6,6 +6,8 @@ import sys
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import pytest
+
 os.environ.setdefault("POSTGRES_PASSWORD", "test")
 os.environ.setdefault("OPENAI_API_KEY", "sk-test")
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
@@ -117,3 +119,51 @@ class TestModelVersionConsistency:
             pipeline = LoanLensPipeline()
         load_model.assert_called_once_with(7)
         assert pipeline.model_version == 7
+
+
+class TestOpenAICall:
+    def _bad_request(self, message):
+        from openai import BadRequestError
+        response = MagicMock(status_code=400, headers={}, request=MagicMock())
+        return BadRequestError(message, response=response, body=None)
+
+    @patch("loanlens.rag.generator.OpenAI")
+    def test_uses_max_completion_tokens_and_configured_model(self, mock_openai):
+        create = mock_openai.return_value.chat.completions.create
+        create.return_value = _llm_reply({"adverse_action_notice": "x", "regulatory_basis": "", "applicant_rights": ""})
+        from loanlens.config import get_settings
+        from loanlens.rag.generator import generate_explanation
+        generate_explanation(FACTORS, PASSAGES, risk_score=0.4, decision="decline")
+        kwargs = create.call_args.kwargs
+        assert kwargs["model"] == get_settings().openai_model
+        assert "max_completion_tokens" in kwargs and "max_tokens" not in kwargs
+
+    @patch("loanlens.rag.generator.OpenAI")
+    def test_retries_without_temperature_when_model_rejects_it(self, mock_openai):
+        create = mock_openai.return_value.chat.completions.create
+        ok = _llm_reply({"adverse_action_notice": "x", "regulatory_basis": "", "applicant_rights": ""})
+        create.side_effect = [self._bad_request("Unsupported value: 'temperature'"), ok]
+        from loanlens.rag.generator import generate_explanation
+        generate_explanation(FACTORS, PASSAGES, risk_score=0.4, decision="decline")
+        assert create.call_count == 2
+        assert "temperature" in create.call_args_list[0].kwargs
+        assert "temperature" not in create.call_args_list[1].kwargs
+
+    @patch("loanlens.rag.generator.OpenAI")
+    def test_other_bad_requests_are_not_retried(self, mock_openai):
+        create = mock_openai.return_value.chat.completions.create
+        create.side_effect = self._bad_request("Invalid model")
+        from openai import BadRequestError
+
+        from loanlens.rag.generator import generate_explanation
+        with pytest.raises(BadRequestError):
+            generate_explanation(FACTORS, PASSAGES, risk_score=0.4, decision="decline")
+        assert create.call_count == 1
+
+    @patch("loanlens.rag.generator.OpenAI")
+    def test_empty_reply_is_a_clear_error(self, mock_openai):
+        reply = MagicMock(choices=[MagicMock(message=MagicMock(content=None), finish_reason="length")])
+        mock_openai.return_value.chat.completions.create.return_value = reply
+        from loanlens.rag.generator import generate_explanation
+        with pytest.raises(ValueError, match="finish_reason=length"):
+            generate_explanation(FACTORS, PASSAGES, risk_score=0.4, decision="decline")

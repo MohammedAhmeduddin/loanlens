@@ -1,17 +1,19 @@
 import os
+
 os.environ["TOKENIZERS_PARALLELISM"] = "false"
 os.environ["OMP_NUM_THREADS"] = "1"
 
 """
 End-to-end LoanLens pipeline.
-Connects: XGBoost scoring → SHAP → ChromaDB retrieval → GPT-4o-mini generation
+Connects: XGBoost scoring → SHAP → ChromaDB retrieval → OpenAI notice drafting (declines only)
 """
+
+import sys
+from pathlib import Path
 
 import pandas as pd
 from loguru import logger
-from pathlib import Path
 
-import sys
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 
 from loanlens.config import get_settings
@@ -21,8 +23,8 @@ from loanlens.model.explain import (
     load_production_model,
 )
 from loanlens.model.features import assert_no_prohibited
-from loanlens.rag.retriever import RegulatoryRetriever
 from loanlens.rag.generator import generate_explanation
+from loanlens.rag.retriever import RegulatoryRetriever
 
 
 class LoanLensPipeline:

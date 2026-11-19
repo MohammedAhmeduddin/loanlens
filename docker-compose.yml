@@ -1,4 +1,6 @@
-version: "3.9"
+# PostgreSQL feature store (+ pgAdmin, local use only).
+# MLflow runs are stored in ./mlflow/mlruns; browse them with:
+#   mlflow ui --backend-store-uri ./mlflow/mlruns --port 5001
 
 services:
   postgres:
@@ -19,26 +21,6 @@ services:
       timeout: 5s
       retries: 5
 
-  mlflow:
-    image: python:3.11-slim
-    container_name: loanlens_mlflow
-    command: >
-      bash -c "pip install mlflow psycopg2-binary &&
-               mlflow server
-               --host 0.0.0.0
-               --port 5000
-               --backend-store-uri postgresql://loanlens:${POSTGRES_PASSWORD}@postgres:5432/loanlens
-               --default-artifact-root /mlflow/artifacts"
-    ports:
-      - "5001:5000"
-    volumes:
-      - mlflow_artifacts:/mlflow/artifacts
-    depends_on:
-      postgres:
-        condition: service_healthy
-    environment:
-      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
-
   pgadmin:
     image: dpage/pgadmin4:latest
     container_name: loanlens_pgadmin
@@ -52,4 +34,3 @@ services:
 
 volumes:
   postgres_data:
-  mlflow_artifacts:

@@ -3,17 +3,16 @@ Data loader for credit scoring model training.
 Loads feat_master from PostgreSQL feature store.
 """
 
-import pandas as pd
-from sqlalchemy import create_engine
-from loguru import logger
-
 import sys
 from pathlib import Path
+
+import pandas as pd
+from loguru import logger
+from sqlalchemy import create_engine
+
 sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 
 from loanlens.config import get_settings
-
-
 from loanlens.model.features import (  # noqa: E402
     CATEGORICAL_COLS,
     NON_FEATURE_COLS,
