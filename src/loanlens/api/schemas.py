@@ -3,7 +3,7 @@ Pydantic request/response schemas for LoanLens API.
 Strict typing on all inputs and outputs.
 """
 
-from pydantic import BaseModel, Field, field_validator
+from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 from typing import Optional
 from enum import Enum
 
@@ -65,6 +65,14 @@ class ScoreRequest(BaseModel):
     reg_city_not_live_city: Optional[int] = Field(None, ge=0, le=1)
     reg_city_not_work_city: Optional[int] = Field(None, ge=0, le=1)
 
+    # Credit bureau inquiries before the application
+    amt_req_credit_bureau_hour: Optional[int] = Field(None, ge=0)
+    amt_req_credit_bureau_day: Optional[int] = Field(None, ge=0)
+    amt_req_credit_bureau_week: Optional[int] = Field(None, ge=0)
+    amt_req_credit_bureau_mon: Optional[int] = Field(None, ge=0)
+    amt_req_credit_bureau_qrt: Optional[int] = Field(None, ge=0)
+    amt_req_credit_bureau_year: Optional[int] = Field(None, ge=0)
+
     # Bureau features
     bureau_loan_count: int = Field(0, ge=0)
     bureau_active_loans: int = Field(0, ge=0)
@@ -72,18 +80,61 @@ class ScoreRequest(BaseModel):
     bureau_max_overdue_days: int = Field(0, ge=0)
     bureau_total_debt: float = Field(0.0, ge=0)
     bureau_debt_to_credit: float = Field(0.0, ge=0, le=1)
-    has_bureau_history: int = Field(0, ge=0, le=1)
+    bureau_closed_loans: Optional[int] = Field(None, ge=0)
+    bureau_oldest_credit_days: Optional[float] = Field(None, le=0, description="Days before application (negative)")
+    bureau_newest_credit_days: Optional[float] = Field(None, le=0, description="Days before application (negative)")
+    bureau_avg_overdue_days: Optional[float] = Field(None, ge=0)
+    bureau_total_credit: Optional[float] = Field(None, ge=0)
+    bureau_total_overdue_amt: Optional[float] = Field(None, ge=0)
+    bureau_credit_type_count: Optional[int] = Field(None, ge=0)
+    bureau_total_prolongations: Optional[int] = Field(None, ge=0)
+    has_bureau_history: Optional[int] = Field(None, ge=0, le=1, description="Derived from bureau_loan_count if omitted")
 
     # Previous application features
     prev_app_count: int = Field(0, ge=0)
     prev_refused_count: int = Field(0, ge=0)
     prev_approval_rate: float = Field(0.0, ge=0, le=1)
-    has_prev_application: int = Field(0, ge=0, le=1)
+    prev_approved_count: Optional[int] = Field(None, ge=0)
+    prev_last_decision_days: Optional[float] = Field(None, le=0, description="Days before application (negative)")
+    prev_first_decision_days: Optional[float] = Field(None, le=0, description="Days before application (negative)")
+    prev_canceled_count: Optional[int] = Field(None, ge=0)
+    prev_avg_application_amt: Optional[float] = Field(None, ge=0)
+    prev_max_credit: Optional[float] = Field(None, ge=0)
+    prev_avg_credit: Optional[float] = Field(None, ge=0)
+    has_prev_application: Optional[int] = Field(None, ge=0, le=1, description="Derived from prev_app_count if omitted")
 
     # Installment features
     late_payment_rate: float = Field(0.0, ge=0, le=1)
     avg_payment_ratio: Optional[float] = None
-    has_instalment_history: int = Field(0, ge=0, le=1)
+    late_payment_count: Optional[int] = Field(None, ge=0)
+    avg_payment_ratio: Optional[float] = Field(None, ge=0)
+    avg_payment_deficit: Optional[float] = None
+    avg_days_late: Optional[float] = Field(None, ge=0)
+    instalment_count: int = Field(0, ge=0, description="Past instalments on record")
+    has_instalment_history: Optional[int] = Field(None, ge=0, le=1, description="Derived from instalment_count if omitted")
+
+    @model_validator(mode="after")
+    def history_is_consistent(self):
+        """Reject inputs no real record could produce (the model would be
+        scoring a combination it never saw in training)."""
+        problems = []
+        if self.bureau_overdue_count > self.bureau_loan_count:
+            problems.append("bureau_overdue_count cannot exceed bureau_loan_count")
+        if self.bureau_active_loans > self.bureau_loan_count:
+            problems.append("bureau_active_loans cannot exceed bureau_loan_count")
+        if self.prev_refused_count > self.prev_app_count:
+            problems.append("prev_refused_count cannot exceed prev_app_count")
+        if self.late_payment_rate > 0 and self.instalment_count == 0:
+            problems.append("late_payment_rate > 0 requires instalment_count > 0")
+        if self.has_bureau_history == 0 and self.bureau_loan_count > 0:
+            problems.append("has_bureau_history=0 contradicts bureau_loan_count > 0")
+        if self.has_prev_application == 0 and self.prev_app_count > 0:
+            problems.append("has_prev_application=0 contradicts prev_app_count > 0")
+        if self.has_instalment_history == 0 and self.instalment_count > 0:
+            problems.append("has_instalment_history=0 contradicts instalment_count > 0")
+        if problems:
+            raise ValueError("; ".join(problems))
+        return self
 
     @field_validator("debt_to_income", mode="before")
     @classmethod
@@ -95,19 +146,27 @@ class ScoreRequest(BaseModel):
                 return round(credit / income, 4)
         return v
 
-    class Config:
-        json_schema_extra = {
+    model_config = ConfigDict(
+        # Unknown fields are an error, not silently dropped. This also rejects
+        # prohibited-basis fields (age_years, code_gender, ...) explicitly.
+        extra="forbid",
+        json_schema_extra={
             "example": {
                 "amt_income_total": 75000,
                 "amt_credit": 250000,
                 "amt_annuity": 12000,
-                "cnt_children": 2,
+                "name_contract_type": "Cash loans",
                 "employment_years": 3.5,
                 "ext_source_2": 0.35,
+                "bureau_loan_count": 4,
                 "bureau_overdue_count": 1,
+                "prev_app_count": 2,
                 "prev_refused_count": 1,
+                "instalment_count": 24,
+                "late_payment_rate": 0.05,
             }
-        }
+        },
+    )
 
 
 class ExplainRequest(ScoreRequest):
@@ -161,6 +220,7 @@ class ExplainResponse(BaseModel):
     regulatory_basis: Optional[str]
     applicant_rights: Optional[str]
     grounding_score: Optional[float]
+    citation_check: Optional[dict] = None
     generation_time_ms: int
 
     # Demo mode flag

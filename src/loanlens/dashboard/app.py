@@ -7,6 +7,7 @@ import gradio as gr
 sys.path.insert(0, str(Path(__file__).parent.parent.parent))
 
 from loanlens.dashboard.samples import (  # noqa: E402
+    HISTORY_NOTE,
     SAMPLES,
     build_payload,
     format_result,
@@ -61,6 +62,7 @@ Uses XGBoost credit scoring + SHAP explainability + ChromaDB retrieval + an Open
         load_btn = gr.Button("Load Sample", variant="secondary", scale=0)
 
     gr.Markdown("---")
+    gr.Markdown(f"*{HISTORY_NOTE}*")
     with gr.Row():
         with gr.Column(scale=1):
             gr.Markdown("### 📝 Borrower Information")

@@ -10,7 +10,7 @@ os.environ["TOKENIZERS_PARALLELISM"] = "false"
 os.environ["OMP_NUM_THREADS"] = "1"
 
 from fastapi.testclient import TestClient
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock
 import sys
 from pathlib import Path
 sys.path.insert(0, str(Path(__file__).parent.parent / "src"))
@@ -87,26 +87,28 @@ VALID_REQUEST = {
     "amt_income_total": 75000,
     "amt_credit": 250000,
     "amt_annuity": 12000,
-    "age_years": 35,
     "cnt_children": 2,
     "employment_years": 5.0,
     "ext_source_2": 0.45,
     "bureau_overdue_count": 0,
     "prev_refused_count": 0,
     "late_payment_rate": 0.05,
+    "instalment_count": 20,
 }
 
 HIGH_RISK_REQUEST = {
     "amt_income_total": 20000,
     "amt_credit": 400000,
     "amt_annuity": 20000,
-    "age_years": 22,
     "cnt_children": 5,
     "employment_years": 0.3,
     "ext_source_2": 0.10,
     "bureau_overdue_count": 5,
+    "bureau_loan_count": 6,
     "prev_refused_count": 4,
+    "prev_app_count": 5,
     "late_payment_rate": 0.8,
+    "instalment_count": 30,
 }
 
 
@@ -244,6 +246,12 @@ class TestSchemas:
         from loanlens.api.schemas import ScoreRequest
         for field in ["age_years", "code_gender", "name_family_status", "employed_to_age_ratio"]:
             assert field not in ScoreRequest.model_fields
+
+    @pytest.mark.parametrize("field, value", [("age_years", 35), ("code_gender", "F"), ("unknown_field", 1)])
+    def test_unknown_or_prohibited_fields_rejected(self, client, field, value):
+        response = client.post("/score", json={**VALID_REQUEST, field: value})
+        assert response.status_code == 422
+        assert field in response.text
 
     def test_late_payment_rate_above_1_rejected(self, client):
         bad = {**VALID_REQUEST, "late_payment_rate": 1.5}

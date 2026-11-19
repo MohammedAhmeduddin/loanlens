@@ -19,6 +19,7 @@ sys.path.insert(0, str(Path(__file__).parent.parent.parent.parent))
 
 from loanlens.config import get_settings
 from loanlens.model.features import encode_categoricals
+from loanlens.model.serving import derive_features
 from loanlens.api.schemas import (
     ScoreRequest, ScoreResponse,
     ExplainRequest, ExplainResponse,
@@ -75,21 +76,10 @@ def request_to_dataframe(
 
     - Column order and set come from the trained model (feature_names).
     - Categoricals use the vocabulary saved at training time.
-    - Anything the request does not provide is NaN (missing), as in training,
-      not 0, which would claim e.g. a worst-possible external score.
+    - Computed ratios, "no record" zeros and history flags follow the dbt
+      feature SQL (see model/serving.py); anything dbt leaves NULL stays NaN.
     """
-    data = request.model_dump()
-
-    if isinstance(data.get("is_unemployed"), bool):
-        data["is_unemployed"] = int(data["is_unemployed"])
-
-    if data.get("debt_to_income") is None and data["amt_income_total"] > 0:
-        data["debt_to_income"] = round(data["amt_credit"] / data["amt_income_total"], 4)
-
-    if data.get("ext_source_mean") is None:
-        sources = [data.get(f"ext_source_{i}") for i in [1, 2, 3]]
-        valid = [s for s in sources if s is not None]
-        data["ext_source_mean"] = round(sum(valid) / len(valid), 6) if valid else None
+    data = derive_features(request.model_dump())
 
     row = {feat: data.get(feat) for feat in feature_names}
     X = pd.DataFrame([row], columns=feature_names)
@@ -167,6 +157,7 @@ async def explain(request: ExplainRequest):
             regulatory_basis=result.get("regulatory_basis"),
             applicant_rights=result.get("applicant_rights"),
             grounding_score=result.get("grounding_score"),
+            citation_check=result.get("citation_check"),
             generation_time_ms=result.get("generation_time_ms", 0),
         )
     except Exception as e:

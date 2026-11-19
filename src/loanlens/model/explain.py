@@ -240,7 +240,8 @@ class CreditExplainer:
                 seen.add(code)
                 unique_codes.append(code)
 
-        return unique_codes[:5]
+        # Regulation B guidance: more than four principal reasons is rarely helpful
+        return unique_codes[:4]
 
 
 def load_production_model(version: int | str | None = None):

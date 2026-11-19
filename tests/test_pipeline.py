@@ -238,3 +238,46 @@ class TestNoticeOnlyForDeclines:
         assert result["decision"] == "review"
         mock_gen.assert_not_called()
         assert result["adverse_action_notice"] is None
+
+
+class TestAdverseActionOnlyForDeclines:
+    def _pipeline(self, prob):
+        with patch("loanlens.rag.pipeline.load_production_model"), \
+             patch("loanlens.rag.pipeline.CreditExplainer"), \
+             patch("loanlens.rag.pipeline.RegulatoryRetriever"), \
+             patch("loanlens.rag.pipeline.load_preprocessing_artifacts",
+                   return_value=(["ext_source_mean"], {}, 4)):
+            from loanlens.rag.pipeline import LoanLensPipeline
+            p = LoanLensPipeline()
+        p.model = MagicMock()
+        p.model.predict_proba.return_value = np.array([[1 - prob, prob]])
+        p.explainer = MagicMock()
+        p.explainer.get_shap_factors.return_value = [{"label": "x"}]
+        p.explainer.get_adverse_action_codes.return_value = ["A1"]
+        p.retriever = MagicMock()
+        return p
+
+    @pytest.mark.parametrize("prob", [0.05, 0.25])
+    def test_approve_and_review_have_no_codes_or_retrieval(self, prob):
+        p = self._pipeline(prob)
+        result = p.explain(pd.DataFrame({"feature": [1.0]}))
+        assert result["adverse_action_codes"] == []
+        assert result["retrieved_passages"] == []
+        p.retriever.retrieve_for_explanation.assert_not_called()
+
+    @patch("loanlens.rag.pipeline.generate_explanation")
+    def test_decline_returns_codes_and_citation_check(self, mock_gen):
+        mock_gen.return_value = {"adverse_action_notice": "Declined.", "citation_check": {"cited": []},
+                                 "grounding_score": None, "generation_time_ms": 5}
+        p = self._pipeline(0.6)
+        result = p.explain(pd.DataFrame({"feature": [1.0]}))
+        assert result["adverse_action_codes"] == ["A1"]
+        assert result["citation_check"] == {"cited": []}
+
+
+def test_at_most_four_reason_codes():
+    from loanlens.model.explain import CreditExplainer
+    with patch("shap.TreeExplainer"):
+        explainer = CreditExplainer(MagicMock())
+    factors = [{"direction": "increases_risk", "cfpb_code": f"A{i}"} for i in range(1, 7)]
+    assert len(explainer.get_adverse_action_codes(factors)) == 4
