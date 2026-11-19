@@ -100,3 +100,25 @@ def test_every_committed_demo_sample_matches_its_own_inputs():
     for name, inputs in SAMPLES.items():
         if name in demo:
             assert match_stored_sample(inputs, demo)[0] == name
+
+
+def test_factor_lowering_risk_shows_no_reason_code():
+    from loanlens.dashboard.samples import format_factor
+    line = format_factor({"rank": 4, "feature": "employment_years", "feature_value": 12.0, "shap_value": -0.198,
+                          "direction": "decreases_risk", "cfpb_code": "A13 - Length of employment"})
+    assert line.startswith("4. Years employed = 12")
+    assert "lowers risk" in line and "A13" not in line
+
+
+def test_unmapped_factor_is_named_in_the_analyst_view():
+    from loanlens.dashboard.samples import format_factor
+    line = format_factor({"rank": 1, "feature": "amt_goods_price", "feature_value": 200000.0, "shap_value": 0.215,
+                          "direction": "increases_risk", "cfpb_code": None})
+    assert "Price of goods financed = 200,000" in line and "not a citable reason" in line
+
+
+def test_unknown_feature_and_missing_value_are_readable():
+    from loanlens.dashboard.samples import format_factor
+    line = format_factor({"rank": 2, "feature": "bureau_oldest_credit_days", "feature_value": None,
+                          "shap_value": 0.05, "direction": "increases_risk", "cfpb_code": None})
+    assert "Bureau oldest credit days = missing" in line
